@@ -1,0 +1,125 @@
+.footer {
+  background: rgba(5, 5, 10, 0.9);
+  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  padding: 3rem 1.5rem 1.5rem;
+  margin-top: 4rem;
+}
+
+.footer-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Brand */
+.footer-brand {
+  max-width: 300px;
+}
+
+.footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  margin-bottom: 0.8rem;
+}
+
+.footer-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: white;
+}
+
+.footer-logo-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #c084fc, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-desc {
+  color: #52525b;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Links */
+.footer-links-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.footer-links-group h4 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin: 0 0 0.3rem;
+}
+
+.footer-links-group a,
+.footer-links-group span {
+  color: #52525b;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.25s ease;
+  cursor: pointer;
+}
+
+.footer-links-group a:hover,
+.footer-links-group span:hover {
+  color: #a78bfa;
+}
+
+/* Bottom */
+.footer-bottom {
+  padding-top: 1.5rem;
+  text-align: center;
+}
+
+.footer-bottom p {
+  color: #3f3f46;
+  font-size: 0.78rem;
+  margin: 0.3rem 0;
+}
+
+.footer-disclaimer {
+  color: #27272a !important;
+  font-size: 0.72rem !important;
+}
+
+@media (max-width: 768px) {
+  .footer-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-top {
+    grid-template-columns: 1fr;
+  }
+}

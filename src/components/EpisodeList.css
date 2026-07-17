@@ -1,0 +1,116 @@
+.episode-list-container {
+  margin-top: 1.5rem;
+}
+
+.episode-list-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #e4e4e7;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.episode-count {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
+.episode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* Custom scrollbar */
+.episode-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.episode-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+}
+
+.episode-grid::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+.episode-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+/* Episode Button */
+.episode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.65rem 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  color: #a1a1aa;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.episode-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #c084fc;
+  transform: translateY(-2px);
+}
+
+.episode-btn.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.15));
+  border-color: rgba(139, 92, 246, 0.5);
+  color: #c084fc;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.ep-number {
+  font-family: 'Inter', sans-serif;
+}
+
+.ep-playing {
+  font-size: 0.6rem;
+  color: #a78bfa;
+  letter-spacing: 0.5px;
+}
+
+/* Empty State */
+.episode-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: #52525b;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.episode-list-empty span {
+  font-size: 2rem;
+}
+
+@media (max-width: 768px) {
+  .episode-grid {
+    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  }
+}
