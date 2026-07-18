@@ -33,8 +33,8 @@ const Navbar = () => {
     <nav className={`navbar${scrolled ? ' scrolled' : ''}`} id="main-navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo" id="navbar-logo">
-          <span className="logo-icon">▶</span>
-          <span className="logo-text">AniStream</span>
+          <span className="logo-icon">🐉</span>
+          <span className="logo-text">DonghuaStream</span>
         </Link>
 
         <div className={`navbar-links${menuOpen ? ' active' : ''}`}>
@@ -56,7 +56,7 @@ const Navbar = () => {
           <input
             type="text"
             className="search-input"
-            placeholder="Search anime..."
+            placeholder="Search donghua..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             id="search-input"

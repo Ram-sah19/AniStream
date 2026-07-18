@@ -15,7 +15,7 @@ const AnimeCard = ({ anime }) => {
     genres = [],
   } = anime;
 
-  // Use mal_id for Jikan-sourced anime, id for Consumet-sourced
+  // AniList returns string `id`; fall back to mal_id if needed
   const linkId = id || mal_id;
   const displayTitle = title_english || title;
 
@@ -28,7 +28,7 @@ const AnimeCard = ({ anime }) => {
           className="card-image"
           loading="lazy"
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/225x320/1a1a2e/c084fc?text=No+Image';
+            e.target.src = 'https://via.placeholder.com/225x320/1a0a08/e8a830?text=No+Image';
           }}
         />
         <div className="card-overlay">

@@ -144,31 +144,25 @@ const WatchPage = () => {
 
           {/* Server Switcher */}
           <div className="server-selector-container">
-            <span className="server-label">🔮 Switch Server (If player is loading or broken):</span>
+            <span className="server-label">🐲 Switch Server (If player is loading or broken):</span>
             <div className="server-buttons">
-              <Link
-                to={`/watch/animepahe:${coreId}`}
-                className={`server-btn ${currentProvider === 'animepahe' ? 'active' : ''}`}
-              >
-                🚀 Server Alpha (High Quality HLS)
-              </Link>
-              <Link
-                to={`/watch/hianime:${coreId}`}
-                className={`server-btn ${currentProvider === 'hianime' ? 'active' : ''}`}
-              >
-                ⚡ Server Beta (HiAnime Scraper)
-              </Link>
               <Link
                 to={`/watch/dailymotion:${coreId}`}
                 className={`server-btn ${currentProvider === 'dailymotion' ? 'active' : ''}`}
               >
-                📺 Server Gamma (Dailymotion Fallback)
+                📺 Server Alpha (Dailymotion Chinese)
               </Link>
               <Link
-                to={`/watch/anime4i:${coreId}`}
-                className={`server-btn ${currentProvider === 'anime4i' ? 'active' : ''}`}
+                to={`/watch/donghua:${coreId}`}
+                className={`server-btn ${currentProvider === 'donghua' ? 'active' : ''}`}
               >
-                🌸 Server Delta (Anime4i Custom Scraper)
+                🐉 Server Beta (Donghua.io Scraper)
+              </Link>
+              <Link
+                to={`/watch/youtube:${coreId}`}
+                className={`server-btn ${currentProvider === 'youtube' ? 'active' : ''}`}
+              >
+                ▶ Server Gamma (YouTube Official)
               </Link>
             </div>
           </div>

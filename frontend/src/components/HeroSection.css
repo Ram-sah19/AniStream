@@ -1,3 +1,5 @@
+/* ── HeroSection — DonghuaStream Imperial Red/Gold Theme ── */
+
 .hero-section {
   position: relative;
   min-height: 540px;
@@ -14,7 +16,7 @@
   inset: 0;
   background-size: cover;
   background-position: center top;
-  filter: blur(32px) brightness(0.25) saturate(1.2);
+  filter: blur(32px) brightness(0.22) saturate(1.3);
   transform: scale(1.12);
   z-index: 0;
 }
@@ -24,9 +26,9 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(7, 7, 13, 0.97) 0%,
-    rgba(7, 7, 13, 0.65) 55%,
-    rgba(7, 7, 13, 0.88) 100%
+    rgba(9, 6, 8, 0.97) 0%,
+    rgba(9, 6, 8, 0.62) 55%,
+    rgba(9, 6, 8, 0.90) 100%
   );
   z-index: 1;
 }
@@ -41,7 +43,7 @@
   background: linear-gradient(to top, var(--bg-primary), transparent);
 }
 
-/* ── Particles ── */
+/* ── Floating Particles — lantern-like red/gold ── */
 .hero-particles {
   position: absolute;
   inset: 0;
@@ -55,12 +57,12 @@
   animation: float 9s ease-in-out infinite;
 }
 
-.particle-1 { width: 5px;  height: 5px;  background: #8b5cf6; top: 18%; left: 8%;  animation-delay: 0s;   opacity: 0.35; }
-.particle-2 { width: 3px;  height: 3px;  background: #ec4899; top: 62%; left: 82%; animation-delay: 1.8s; opacity: 0.3; }
-.particle-3 { width: 7px;  height: 7px;  background: #6366f1; top: 28%; left: 58%; animation-delay: 3.2s; opacity: 0.25; }
-.particle-4 { width: 4px;  height: 4px;  background: #f472b6; top: 72%; left: 28%; animation-delay: 4.8s; opacity: 0.3; }
-.particle-5 { width: 5px;  height: 5px;  background: #a78bfa; top: 12%; left: 88%; animation-delay: 2.2s; opacity: 0.28; }
-.particle-6 { width: 6px;  height: 6px;  background: #818cf8; top: 82%; left: 52%; animation-delay: 5.5s; opacity: 0.22; }
+.particle-1 { width: 5px;  height: 5px;  background: #d4291f; top: 18%; left: 8%;  animation-delay: 0s;   opacity: 0.4; }
+.particle-2 { width: 3px;  height: 3px;  background: #e8a830; top: 62%; left: 82%; animation-delay: 1.8s; opacity: 0.35; }
+.particle-3 { width: 7px;  height: 7px;  background: #c0392b; top: 28%; left: 58%; animation-delay: 3.2s; opacity: 0.28; }
+.particle-4 { width: 4px;  height: 4px;  background: #f5c842; top: 72%; left: 28%; animation-delay: 4.8s; opacity: 0.35; }
+.particle-5 { width: 5px;  height: 5px;  background: #e8a830; top: 12%; left: 88%; animation-delay: 2.2s; opacity: 0.3; }
+.particle-6 { width: 6px;  height: 6px;  background: #d4291f; top: 82%; left: 52%; animation-delay: 5.5s; opacity: 0.25; }
 
 @keyframes float {
   0%, 100% { transform: translateY(0) translateX(0); }
@@ -98,9 +100,9 @@
 }
 
 .trending-badge {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fb923c;
-  border: 1px solid rgba(234, 88, 12, 0.25);
+  background: rgba(212, 41, 31, 0.18);
+  color: #e8a830;
+  border: 1px solid rgba(232, 168, 48, 0.3);
 }
 
 .score-badge {
@@ -110,18 +112,25 @@
 }
 
 .genre-badge {
-  background: rgba(139, 92, 246, 0.12);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.22);
+  background: rgba(212, 41, 31, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(212, 41, 31, 0.22);
 }
 
+.studio-badge {
+  background: rgba(232, 168, 48, 0.1);
+  color: #e8a830;
+  border: 1px solid rgba(232, 168, 48, 0.2);
+}
+
+/* Hero title — red to gold gradient */
 .hero-title {
   font-family: var(--font-heading);
   font-size: 2.9rem;
   font-weight: 900;
   line-height: 1.08;
   margin: 0 0 1rem;
-  background: linear-gradient(135deg, #ffffff 0%, #c084fc 55%, #f472b6 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #f5c842 45%, #d4291f 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -156,14 +165,14 @@
 }
 
 .hero-btn-primary {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #d4291f, #a81f16);
   color: white;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 20px rgba(212, 41, 31, 0.45);
 }
 
 .hero-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(139, 92, 246, 0.55);
+  box-shadow: 0 8px 28px rgba(212, 41, 31, 0.6), 0 0 20px rgba(232, 168, 48, 0.2);
 }
 
 .hero-btn-secondary {
@@ -174,8 +183,8 @@
 }
 
 .hero-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(232, 168, 48, 0.08);
+  border-color: rgba(232, 168, 48, 0.25);
   transform: translateY(-2px);
 }
 
@@ -197,20 +206,20 @@
   height: 370px;
   object-fit: cover;
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 40px rgba(139, 92, 246, 0.12);
-  border: 2px solid rgba(139, 92, 246, 0.18);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 40px rgba(212, 41, 31, 0.15);
+  border: 2px solid rgba(232, 168, 48, 0.2);
   transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
 }
 
 .hero-poster-img:hover {
   transform: scale(1.02) translateY(-4px);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 50px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65), 0 0 50px rgba(232, 168, 48, 0.25);
 }
 
 .hero-poster-glow {
   position: absolute;
   inset: -24px;
-  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.18) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(212, 41, 31, 0.2) 0%, transparent 70%);
   z-index: -1;
   filter: blur(20px);
 }

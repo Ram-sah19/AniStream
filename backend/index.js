@@ -47,7 +47,7 @@ app.use('/api/user', userRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'Anime Streaming API is running',
+    message: 'DonghuaStream API is running — Chinese Anime Platform',
     timestamp: new Date().toISOString(),
   });
 });
@@ -73,8 +73,9 @@ const startServer = async () => {
   await connectDB();
 
   app.listen(PORT, () => {
-    console.log(`\n🚀 Anime Backend API running on http://localhost:${PORT}`);
-    console.log(`📡 Scraper: @consumet/extensions (built-in Hianime)`);
+    console.log(`\n🐉 DonghuaStream Backend API running on http://localhost:${PORT}`);
+    console.log(`📡 Data: AniList GraphQL API (countryOfOrigin: CN)`);
+    console.log(`🎬 Scrapers: Donghua.io + Dailymotion Chinese Channels`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health\n`);
   });
 };

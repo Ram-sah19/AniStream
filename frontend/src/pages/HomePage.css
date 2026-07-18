@@ -49,19 +49,19 @@
 .section-view-all {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #a78bfa;
+  color: #e8a830;
   white-space: nowrap;
   padding: 0.4rem 0.9rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(232, 168, 48, 0.25);
+  background: rgba(232, 168, 48, 0.08);
   transition: all 0.2s var(--ease);
 }
 
 .section-view-all:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.4);
-  color: #c084fc;
+  background: rgba(212, 41, 31, 0.12);
+  border-color: rgba(212, 41, 31, 0.35);
+  color: #f5c842;
 }
 
 /* ── Grid ── */

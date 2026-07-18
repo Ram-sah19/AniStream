@@ -14,7 +14,7 @@
   transform: translateX(-50%);
   width: 200px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(232, 168, 48, 0.5), transparent);
 }
 
 .footer-container { max-width: 1440px; margin: 0 auto; }
@@ -39,7 +39,7 @@
 .footer-logo-icon {
   width: 30px;
   height: 30px;
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  background: linear-gradient(135deg, #d4291f, #e8a830);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -52,7 +52,7 @@
   font-family: var(--font-heading);
   font-size: 1.25rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #c084fc, #f472b6);
+  background: linear-gradient(135deg, #e8a830, #f5c842 40%, #d4291f);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -90,7 +90,7 @@
 }
 
 .footer-links-group a:hover,
-.footer-links-group span:hover { color: #a78bfa; }
+.footer-links-group span:hover { color: #e8a830; }
 
 .footer-bottom {
   padding-top: 1.5rem;

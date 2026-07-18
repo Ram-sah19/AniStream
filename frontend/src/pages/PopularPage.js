@@ -17,7 +17,7 @@ const PopularPage = () => {
         setAnime(data.results || []);
       } catch (err) {
         console.error('Failed to fetch popular:', err);
-        setError('Failed to load popular anime. Make sure the backend is running.');
+        setError('Failed to load popular donghua. Make sure the backend is running.');
       } finally {
         setLoading(false);
       }
@@ -31,10 +31,10 @@ const PopularPage = () => {
       <section className="anime-section" style={{ paddingTop: '6rem' }}>
         <div className="section-header">
           <h2 className="section-title">
-            <span className="section-icon">🔥</span>
-            Most Popular Anime
+            <span className="section-icon">🐉</span>
+            Most Popular Donghua
           </h2>
-          <p className="section-subtitle">All-time most popular anime ranked by fans</p>
+          <p className="section-subtitle">All-time most popular Chinese anime ranked by fans</p>
         </div>
 
         {loading ? (
@@ -58,7 +58,7 @@ const PopularPage = () => {
           <div className="anime-grid" id="popular-grid">
             {anime.map((item, index) => (
               <div
-                key={item.mal_id ? `popular-${item.mal_id}-${index}` : `popular-${item.id || index}`}
+                key={item.id ? `popular-${item.id}-${index}` : `popular-${index}`}
                 className="anime-grid-item"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >

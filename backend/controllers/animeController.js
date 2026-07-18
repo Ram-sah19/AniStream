@@ -1,128 +1,354 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { ANIME } = require('@consumet/extensions');
 
-const JIKAN_URL = 'https://api.jikan.moe/v4';
-const animepahe = new ANIME.AnimePahe();
+// ═══════════════════════════════════════
+// AniList GraphQL API — Chinese Donghua
+// ═══════════════════════════════════════
+const ANILIST_URL = 'https://graphql.anilist.co';
 
-// Jikan rate-limit: 3 req/sec, 60 req/min — add small delay between calls
-const jikanGet = async (path, params = {}) => {
-  const { data } = await axios.get(`${JIKAN_URL}${path}`, {
-    params,
-    headers: { 'Accept': 'application/json' },
-    timeout: 10000,
-  });
-  return data;
-};
-
-const mapJikanAnime = (item) => ({
-  mal_id: item.mal_id,
-  id: String(item.mal_id),
-  title: item.title_english || item.title,
-  title_english: item.title_english,
-  image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
-  score: item.score ? Number(item.score.toFixed(1)) : null,
-  episodes: item.episodes,
-  status: item.status,
-  synopsis: item.synopsis || '',
-  genres: item.genres?.map((g) => g.name) || [],
-  year: item.year || item.aired?.prop?.from?.year,
-  season: item.season,
-  type: item.type,
-});
-
-// Helper headers for hianime.ro scraping
 const SCRAPER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.5',
+  'Referer': 'https://www.google.com/',
 };
 
 /**
- * @desc    Get trending / top-airing anime
+ * Execute an AniList GraphQL query
+ */
+const anilistQuery = async (query, variables = {}) => {
+  const { data } = await axios.post(
+    ANILIST_URL,
+    { query, variables },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 12000,
+    }
+  );
+  return data;
+};
+
+/**
+ * Map an AniList media object to our internal schema
+ */
+const mapAniListAnime = (item) => ({
+  id: String(item.id),
+  mal_id: item.idMal || item.id,
+  title: item.title?.english || item.title?.romaji || item.title?.native,
+  title_english: item.title?.english || item.title?.romaji,
+  title_native: item.title?.native,
+  image:
+    item.coverImage?.extraLarge ||
+    item.coverImage?.large ||
+    item.coverImage?.medium,
+  score: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : null,
+  episodes: item.episodes,
+  status: item.status === 'RELEASING' ? 'Ongoing' : item.status === 'FINISHED' ? 'Completed' : item.status,
+  synopsis: item.description
+    ? item.description.replace(/<[^>]*>/g, '') // strip HTML tags
+    : '',
+  genres: item.genres || [],
+  year: item.startDate?.year,
+  season: item.season,
+  type: item.format,
+  countryOfOrigin: item.countryOfOrigin,
+  studio: item.studios?.nodes?.[0]?.name || null,
+});
+
+// ═══════════════════════════════════════
+// TRENDING DONGHUA
+// ═══════════════════════════════════════
+
+/**
+ * @desc    Get trending Chinese anime (donghua)
  * @route   GET /api/anime/trending
  */
 const getTrending = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const data = await jikanGet('/top/anime', { page, filter: 'airing', limit: 24 });
-    const anime = (data.data || []).map(mapJikanAnime);
+
+    const query = `
+      query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo { total currentPage lastPage hasNextPage perPage }
+          media(
+            type: ANIME
+            countryOfOrigin: "CN"
+            sort: [TRENDING_DESC, POPULARITY_DESC]
+            status_in: [RELEASING, FINISHED]
+          ) {
+            id
+            idMal
+            title { romaji english native }
+            coverImage { extraLarge large medium }
+            averageScore
+            episodes
+            status
+            genres
+            startDate { year }
+            season
+            format
+            description
+            countryOfOrigin
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+
+    const data = await anilistQuery(query, { page, perPage: 24 });
+    const mediaList = data?.data?.Page?.media || [];
+    const anime = mediaList.map(mapAniListAnime);
+
     res.json({ success: true, results: anime });
   } catch (error) {
     console.error('Trending fetch error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch trending anime' });
+    res.status(500).json({ success: false, message: 'Failed to fetch trending donghua' });
   }
 };
 
+// ═══════════════════════════════════════
+// POPULAR DONGHUA
+// ═══════════════════════════════════════
+
 /**
- * @desc    Get popular anime of all time
+ * @desc    Get popular Chinese anime (donghua)
  * @route   GET /api/anime/popular
  */
 const getPopular = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const data = await jikanGet('/top/anime', { page, filter: 'bypopularity', limit: 24 });
-    const anime = (data.data || []).map(mapJikanAnime);
+
+    const query = `
+      query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo { total currentPage lastPage hasNextPage perPage }
+          media(
+            type: ANIME
+            countryOfOrigin: "CN"
+            sort: [POPULARITY_DESC, SCORE_DESC]
+          ) {
+            id
+            idMal
+            title { romaji english native }
+            coverImage { extraLarge large medium }
+            averageScore
+            episodes
+            status
+            genres
+            startDate { year }
+            season
+            format
+            description
+            countryOfOrigin
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+
+    const data = await anilistQuery(query, { page, perPage: 24 });
+    const mediaList = data?.data?.Page?.media || [];
+    const anime = mediaList.map(mapAniListAnime);
+
     res.json({ success: true, results: anime });
   } catch (error) {
     console.error('Popular fetch error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch popular anime' });
+    res.status(500).json({ success: false, message: 'Failed to fetch popular donghua' });
   }
 };
 
+// ═══════════════════════════════════════
+// SEARCH DONGHUA
+// ═══════════════════════════════════════
+
 /**
- * @desc    Search anime by query
+ * @desc    Search Chinese anime by query
  * @route   GET /api/anime/search
  */
 const searchAnime = async (req, res) => {
   try {
     const { q } = req.query;
-    let anime = [];
-    if (q) {
-      const data = await jikanGet('/anime', { q, limit: 24, sfw: true });
-      anime = (data.data || []).map(mapJikanAnime);
+    if (!q) return res.json({ success: true, results: [] });
+
+    const query = `
+      query ($search: String, $page: Int) {
+        Page(page: $page, perPage: 24) {
+          media(
+            type: ANIME
+            countryOfOrigin: "CN"
+            search: $search
+            sort: [SEARCH_MATCH]
+          ) {
+            id
+            idMal
+            title { romaji english native }
+            coverImage { extraLarge large medium }
+            averageScore
+            episodes
+            status
+            genres
+            startDate { year }
+            season
+            format
+            description
+            countryOfOrigin
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+
+    const data = await anilistQuery(query, { search: q, page: 1 });
+    const mediaList = data?.data?.Page?.media || [];
+
+    // If no CN results, fall back to a global search (in case user typed Chinese title in romaji)
+    if (mediaList.length === 0) {
+      const fallbackQuery = `
+        query ($search: String, $page: Int) {
+          Page(page: $page, perPage: 24) {
+            media(
+              type: ANIME
+              search: $search
+              sort: [SEARCH_MATCH]
+              countryOfOrigin: "CN"
+            ) {
+              id
+              idMal
+              title { romaji english native }
+              coverImage { extraLarge large medium }
+              averageScore
+              episodes
+              status
+              genres
+              startDate { year }
+              season
+              format
+              description
+              countryOfOrigin
+              studios(isMain: true) { nodes { name } }
+            }
+          }
+        }
+      `;
+      const fbData = await anilistQuery(fallbackQuery, { search: q, page: 1 });
+      const fbList = fbData?.data?.Page?.media || [];
+      return res.json({ success: true, results: fbList.map(mapAniListAnime) });
     }
-    res.json({ success: true, results: anime });
+
+    res.json({ success: true, results: mediaList.map(mapAniListAnime) });
   } catch (error) {
     console.error('Search error:', error.message);
-    res.status(500).json({ success: false, message: 'Search failed' });
+    res.status(500).json({ success: false, message: 'Donghua search failed' });
   }
 };
 
+// ═══════════════════════════════════════
+// ANIME INFO + EPISODE LIST
+// ═══════════════════════════════════════
+
 /**
- * Helper to resolve anime page HTML on hianime.ro
+ * Scrape episode list from donghua.io for a given title
  */
-const getHianimePageHtml = async (title) => {
-  const cleanSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const directUrl = `https://hianime.ro/anime/${cleanSlug}/`;
-  
+const getDonghuaIoEpisodes = async (animeTitle) => {
   try {
-    console.log(`[Hianime Scraper] Checking direct url: ${directUrl}`);
-    const res = await axios.get(directUrl, { headers: SCRAPER_HEADERS, timeout: 5000 });
-    return res.data;
-  } catch (err) {
-    console.log(`[Hianime Scraper] Direct URL failed. Searching for "${title}" on site...`);
-    try {
-      const searchUrl = `https://hianime.ro/?s=${encodeURIComponent(title)}`;
-      const searchRes = await axios.get(searchUrl, { headers: SCRAPER_HEADERS, timeout: 5000 });
-      const $ = cheerio.load(searchRes.data);
-      
-      // Look for the first result card link under the search results
-      const resolvedLink = $('a[href*="/anime/"]').first().attr('href');
-      if (resolvedLink) {
-        console.log(`[Hianime Scraper] Found matching anime page: ${resolvedLink}`);
-        const res = await axios.get(resolvedLink, { headers: SCRAPER_HEADERS, timeout: 5000 });
-        return res.data;
+    console.log(`[Donghua.io] Searching for series: "${animeTitle}"`);
+    const cleanTitle = animeTitle.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const slug = cleanTitle.replace(/\s+/g, '-');
+
+    // Try direct URL first
+    const directUrls = [
+      `https://www.donghua.io/anime/${slug}/`,
+      `https://www.donghua.io/anime/${slug}`,
+    ];
+
+    for (const url of directUrls) {
+      try {
+        console.log(`[Donghua.io] Trying direct URL: ${url}`);
+        const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 8000 });
+        const $ = cheerio.load(res.data);
+        const episodes = [];
+
+        // Try common episode list selectors
+        $('a[href*="/episode/"], a[href*="-episode-"], .ep-list a, .episodes-list a, .episode-list a').each((i, el) => {
+          const href = $(el).attr('href');
+          const text = $(el).text().trim();
+          if (href && href.includes('episode')) {
+            const epMatch = href.match(/episode[-_]?(\d+)/i) || text.match(/(\d+)/);
+            const epNum = epMatch ? parseInt(epMatch[1], 10) : i + 1;
+            const epSlug = href.replace(/https?:\/\/[^/]+\//, '').replace(/\/$/, '');
+            if (epSlug && !episodes.some((e) => e.id === `donghua:${epSlug}`)) {
+              episodes.push({
+                id: `donghua:${epSlug}`,
+                number: epNum,
+                url: `/watch/donghua:${epSlug}`,
+              });
+            }
+          }
+        });
+
+        if (episodes.length > 0) {
+          episodes.sort((a, b) => a.number - b.number);
+          console.log(`[Donghua.io] Found ${episodes.length} episodes via direct URL.`);
+          return episodes;
+        }
+      } catch (e) {
+        console.log(`[Donghua.io] Direct URL failed: ${e.message}`);
       }
-    } catch (searchErr) {
-      console.warn('[Hianime Scraper] Search failed:', searchErr.message);
     }
+
+    // Try search
+    const searchUrl = `https://www.donghua.io/?s=${encodeURIComponent(animeTitle)}`;
+    console.log(`[Donghua.io] Trying search: ${searchUrl}`);
+    const searchRes = await axios.get(searchUrl, { headers: SCRAPER_HEADERS, timeout: 8000 });
+    const $s = cheerio.load(searchRes.data);
+
+    let seriesUrl = null;
+    $s('a[href*="/anime/"]').each((i, el) => {
+      const href = $s(el).attr('href');
+      if (href && !seriesUrl) {
+        seriesUrl = href;
+      }
+    });
+
+    if (seriesUrl) {
+      const pageRes = await axios.get(seriesUrl, { headers: SCRAPER_HEADERS, timeout: 8000 });
+      const $p = cheerio.load(pageRes.data);
+      const episodes = [];
+
+      $p('a[href*="/episode/"], a[href*="-episode-"], .ep-list a, .episodes-list a').each((i, el) => {
+        const href = $p(el).attr('href');
+        if (href) {
+          const epMatch = href.match(/episode[-_]?(\d+)/i);
+          const epNum = epMatch ? parseInt(epMatch[1], 10) : i + 1;
+          const epSlug = href.replace(/https?:\/\/[^/]+\//, '').replace(/\/$/, '');
+          if (epSlug && !episodes.some((e) => e.id === `donghua:${epSlug}`)) {
+            episodes.push({
+              id: `donghua:${epSlug}`,
+              number: epNum,
+              url: `/watch/donghua:${epSlug}`,
+            });
+          }
+        }
+      });
+
+      if (episodes.length > 0) {
+        episodes.sort((a, b) => a.number - b.number);
+        console.log(`[Donghua.io] Found ${episodes.length} episodes via search.`);
+        return episodes;
+      }
+    }
+  } catch (error) {
+    console.warn(`[Donghua.io] Scraper failed:`, error.message);
   }
-  return null;
+  return [];
 };
 
 /**
- * @desc    Get anime info + dynamic/scraped episode list
+ * @desc    Get donghua info + episode list
  * @route   GET /api/anime/info/:animeId
  */
 const getAnimeInfo = async (req, res) => {
@@ -130,124 +356,107 @@ const getAnimeInfo = async (req, res) => {
     const { animeId } = req.params;
     let resolvedId = animeId;
 
+    // Strip provider prefix if present (e.g. "anilist:12345")
     if (resolvedId.includes(':')) {
       const parts = resolvedId.split(':');
-      resolvedId = parts.slice(1).join(':');
+      resolvedId = parts[parts.length - 1];
     }
 
-    // If ID is not numeric, search Jikan to find the MAL ID
-    if (!/^\d+$/.test(resolvedId)) {
-      console.log(`[Metadata] Alphanumeric ID "${resolvedId}". Searching Jikan...`);
-      const cleanSlug = resolvedId.replace(/-/g, ' ');
-      const searchRes = await jikanGet('/anime', { q: cleanSlug, limit: 1 });
-      const foundItem = searchRes?.data?.[0];
-      if (foundItem) {
-        resolvedId = String(foundItem.mal_id);
-      } else {
-        return res.status(404).json({ success: false, message: 'Anime details not found' });
-      }
-    }
+    let item = null;
 
-    console.log(`[Metadata] Fetching anime info for MAL ID: "${resolvedId}"`);
-    const detailsRes = await jikanGet(`/anime/${resolvedId}/full`);
-    const item = detailsRes?.data;
-
-    if (!item) {
-      return res.status(404).json({ success: false, message: 'Anime details not found' });
-    }
-
-    // Determine expected episode count
-    const expectedCount = item.episodes || 12;
-    let episodes = [];
-    const mainTitle = item.title_english || item.title;
-    const backupTitle = item.title !== mainTitle ? item.title : '';
-
-    // Tier 1: Fetch episodes from Anime4i (Primary for Chinese Anime)
-    try {
-      const anime4iEpList = await getAnime4iEpisodes(mainTitle);
-      if (anime4iEpList && anime4iEpList.length > 0) {
-        episodes = anime4iEpList;
-        console.log(`[Anime4i Scraper] Successfully loaded ${episodes.length} episodes as primary!`);
-      }
-    } catch (anime4iErr) {
-      console.warn('[Anime4i Scraper] Failed to fetch episodes as primary:', anime4iErr.message);
-    }
-
-    // Tier 2: Fetch real episodes using @consumet/extensions (AnimePahe fallback)
-    if (episodes.length < expectedCount) {
-      try {
-        console.log(`[AnimePahe] Searching for anime: "${mainTitle}"`);
-        const searchRes = await animepahe.search(mainTitle);
-        const results = searchRes.results || [];
-        let matchedAnime = results[0];
-
-        if (!matchedAnime && backupTitle) {
-          console.log(`[AnimePahe] No match for "${mainTitle}". Trying backup title: "${backupTitle}"`);
-          const searchResEng = await animepahe.search(backupTitle);
-          matchedAnime = searchResEng.results?.[0];
-        }
-
-        if (matchedAnime) {
-          console.log(`[AnimePahe] Found matching anime ID: "${matchedAnime.id}". Fetching details...`);
-          const animeDetails = await animepahe.fetchAnimeInfo(matchedAnime.id);
-          if (animeDetails && animeDetails.episodes && animeDetails.episodes.length > episodes.length) {
-            episodes = animeDetails.episodes.map((ep) => ({
-              id: `animepahe:${ep.id}`,
-              number: Number(ep.number) || ep.number,
-              url: `/watch/animepahe:${ep.id}`,
-            }));
-            console.log(`[AnimePahe] Successfully replaced with more complete list of ${episodes.length} episodes!`);
+    // Fetch by AniList ID (numeric) or search by title
+    if (/^\d+$/.test(resolvedId)) {
+      console.log(`[AniList] Fetching details for ID: ${resolvedId}`);
+      const query = `
+        query ($id: Int) {
+          Media(id: $id, type: ANIME) {
+            id
+            idMal
+            title { romaji english native }
+            coverImage { extraLarge large medium }
+            bannerImage
+            averageScore
+            episodes
+            status
+            genres
+            startDate { year }
+            season
+            format
+            description
+            countryOfOrigin
+            studios(isMain: true) { nodes { name } }
           }
         }
-      } catch (paheErr) {
-        console.warn('[AnimePahe] Failed to fetch episodes:', paheErr.message);
-      }
-    }
-
-    // Tier 3: Attempt to scrape real episodes from hianime.ro (Fallback)
-    if (episodes.length < expectedCount) {
-      try {
-        const pageHtml = await getHianimePageHtml(mainTitle);
-        if (pageHtml) {
-          const $ = cheerio.load(pageHtml);
-          const animePostId = $('#ani_detail').attr('data-anime-id') || $('[data-anime-id]').first().attr('data-anime-id');
-          
-          if (animePostId) {
-            console.log(`[Hianime Scraper] Found Post ID: ${animePostId}. Fetching episode list...`);
-            const listRes = await axios.get(`https://hianime.ro/wp-json/v1/otakuthemes/episode/list/${animePostId}`, {
-              headers: SCRAPER_HEADERS,
-              timeout: 5000,
-            });
-
-            if (listRes.data && listRes.data.status && listRes.data.html) {
-              const $list = cheerio.load(listRes.data.html);
-              const hianimeEpisodes = [];
-              $list('.ep-item').each((i, el) => {
-                const epId = $list(el).attr('data-id');
-                const epNum = $list(el).attr('data-number') || $list(el).text().trim();
-                if (epId) {
-                  hianimeEpisodes.push({
-                    id: `hianime:${epId}`,
-                    number: Number(epNum) || (i + 1),
-                    url: `/watch/hianime:${epId}`,
-                  });
-                }
-              });
-              if (hianimeEpisodes.length > episodes.length) {
-                episodes = hianimeEpisodes;
-                console.log(`[Hianime Scraper] Successfully replaced with more complete list of ${episodes.length} episodes!`);
-              }
+      `;
+      const data = await anilistQuery(query, { id: parseInt(resolvedId, 10) });
+      item = data?.data?.Media;
+    } else {
+      // Search by title slug
+      console.log(`[AniList] Searching by title: "${resolvedId}"`);
+      const cleanTitle = resolvedId.replace(/-/g, ' ');
+      const query = `
+        query ($search: String) {
+          Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: $search, countryOfOrigin: "CN") {
+              id
+              idMal
+              title { romaji english native }
+              coverImage { extraLarge large medium }
+              bannerImage
+              averageScore
+              episodes
+              status
+              genres
+              startDate { year }
+              season
+              format
+              description
+              countryOfOrigin
+              studios(isMain: true) { nodes { name } }
             }
           }
         }
-      } catch (scrapeErr) {
-        console.warn('[Hianime Scraper] Scraper failed to fetch episodes:', scrapeErr.message);
+      `;
+      const data = await anilistQuery(query, { search: cleanTitle });
+      item = data?.data?.Page?.media?.[0];
+    }
+
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Donghua not found' });
+    }
+
+    const mapped = mapAniListAnime(item);
+    const mainTitle = mapped.title;
+    const expectedCount = mapped.episodes || 12;
+    let episodes = [];
+
+    // Tier 1: Donghua.io scraper
+    try {
+      const donghuaEps = await getDonghuaIoEpisodes(mainTitle);
+      if (donghuaEps.length > 0) {
+        episodes = donghuaEps;
+        console.log(`[Donghua.io] Loaded ${episodes.length} episodes as primary source.`);
+      }
+    } catch (e) {
+      console.warn('[Donghua.io] Primary scraper failed:', e.message);
+    }
+
+    // Tier 2: Try alternate title (romaji) if English title failed
+    if (episodes.length === 0 && item.title?.romaji && item.title.romaji !== mainTitle) {
+      try {
+        const romajiEps = await getDonghuaIoEpisodes(item.title.romaji);
+        if (romajiEps.length > 0) {
+          episodes = romajiEps;
+          console.log(`[Donghua.io] Loaded ${episodes.length} episodes via romaji title.`);
+        }
+      } catch (e) {
+        console.warn('[Donghua.io] Romaji title scrape failed:', e.message);
       }
     }
 
-    // Tier 4: Generate dynamic episode list if other methods failed
+    // Tier 3: Generate episode list with Dailymotion search fallback
     if (episodes.length === 0) {
-      const totalCount = item.episodes || 12;
+      const totalCount = expectedCount;
       const slugTitle = mainTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       for (let i = 1; i <= totalCount; i++) {
         episodes.push({
@@ -256,48 +465,55 @@ const getAnimeInfo = async (req, res) => {
           url: `/watch/dailymotion:${slugTitle}-episode-${i}`,
         });
       }
-      console.log(`[Scraper Fallback] Generated ${episodes.length} dynamic Dailymotion episodes.`);
+      console.log(`[Fallback] Generated ${episodes.length} Dailymotion fallback episodes.`);
     }
 
     res.json({
       success: true,
       anime: {
-        id: String(item.mal_id),
-        mal_id: item.mal_id,
-        title: item.title_english || item.title,
-        title_english: item.title_english,
-        image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
-        description: item.synopsis || '',
-        status: item.status,
-        genres: item.genres?.map((g) => g.name) || [],
-        totalEpisodes: item.episodes || episodes.length,
-        score: item.score ? Number(item.score.toFixed(1)) : null,
-        year: item.year || item.aired?.prop?.from?.year,
-        season: item.season,
-        type: item.type,
-        episodes: episodes,
+        id: String(item.id),
+        mal_id: item.idMal || item.id,
+        title: mapped.title,
+        title_english: mapped.title_english,
+        title_native: mapped.title_native,
+        image: mapped.image,
+        description: mapped.synopsis,
+        status: mapped.status,
+        genres: mapped.genres,
+        totalEpisodes: mapped.episodes || episodes.length,
+        score: mapped.score,
+        year: mapped.year,
+        season: mapped.season,
+        type: mapped.type,
+        studio: mapped.studio,
+        countryOfOrigin: mapped.countryOfOrigin,
+        episodes,
       },
     });
-
   } catch (error) {
     console.error('Anime info error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch anime info' });
+    res.status(500).json({ success: false, message: 'Failed to fetch donghua info' });
   }
 };
 
+// ═══════════════════════════════════════
+// STREAMING — EPISODE WATCH URL
+// ═══════════════════════════════════════
+
+/**
+ * Parse episode info from a slug ID like "fog-hill-of-five-elements-episode-1"
+ */
 const parseEpisodeInfo = (id) => {
   let episodeNum = '1';
   let animeName = id.replace(/-/g, ' ');
 
-  // Try to find "episode-XX" or "ep-XX"
-  let match = id.match(/(?:episode|ep)-(\d+)/i);
+  let match = id.match(/(?:episode|ep)[-_]?(\d+)/i);
   if (match) {
     episodeNum = match[1];
     const index = id.toLowerCase().indexOf(match[0]);
     animeName = id.substring(0, index).replace(/-/g, ' ').trim();
   } else {
-    // Trailing number fallback
-    const cleanId = id.replace(/-(sub|dub|english|eng|raw)/gi, '');
+    const cleanId = id.replace(/-(sub|dub|english|eng|raw|chinese|cn)/gi, '');
     const parts = cleanId.split('-');
     const lastPart = parts[parts.length - 1];
     if (/^\d+$/.test(lastPart)) {
@@ -306,7 +522,6 @@ const parseEpisodeInfo = (id) => {
     }
   }
 
-  // Capitalize title
   animeName = animeName
     .split(' ')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -316,436 +531,239 @@ const parseEpisodeInfo = (id) => {
 };
 
 /**
- * Fallback to search Dailymotion
+ * Search Dailymotion for a Chinese anime episode
+ * (Official channels like Tencent Video, Bilibili, iQIYI post on Dailymotion)
  */
-const getDailymotionFallback = async (targetId) => {
+const getDailymotionStream = async (targetId) => {
   try {
     const { animeName, episodeNum } = parseEpisodeInfo(targetId);
-    const searchQuery = `${animeName} Episode ${episodeNum}`;
-    console.log(`[Dailymotion Fallback] Searching: "${searchQuery}"`);
 
-    const { data } = await axios.get('https://api.dailymotion.com/videos', {
-      params: {
-        fields: 'id,title',
-        search: searchQuery,
-        limit: 5,
-      },
-      timeout: 5000,
-    });
+    // Try multiple search queries — prefer official Chinese channel content
+    const queries = [
+      `${animeName} Episode ${episodeNum} English Sub`,
+      `${animeName} Ep ${episodeNum} Sub`,
+      `${animeName} ${episodeNum}`,
+    ];
 
-    const list = data?.list || [];
-    if (list.length > 0) {
-      const match = list.find((v) => 
-        v.title.toLowerCase().includes(episodeNum) || 
-        v.title.toLowerCase().includes(`ep ${episodeNum}`) ||
-        v.title.toLowerCase().includes(`ep.${episodeNum}`)
-      ) || list[0];
+    for (const searchQuery of queries) {
+      console.log(`[Dailymotion] Searching: "${searchQuery}"`);
+      try {
+        const { data } = await axios.get('https://api.dailymotion.com/videos', {
+          params: {
+            fields: 'id,title,channel',
+            search: searchQuery,
+            limit: 10,
+            sort: 'relevance',
+          },
+          timeout: 6000,
+        });
 
-      const embedUrl = `https://www.dailymotion.com/embed/video/${match.id}`;
-      console.log(`[Dailymotion Fallback] Resolved: "${match.title}" -> ${embedUrl}`);
-      
-      return {
-        success: true,
-        videoUrl: embedUrl,
-        isM3U8: false,
-        quality: 'Dailymotion Embed',
-        sources: [
-          {
-            url: embedUrl,
-            quality: 'Dailymotion',
+        const list = data?.list || [];
+        if (list.length > 0) {
+          // Prefer official Chinese studio channel uploads
+          const officialKeywords = ['tencent', 'bilibili', 'iqiyi', 'youku', 'official', 'animation', 'anime'];
+          const officialMatch = list.find((v) =>
+            officialKeywords.some((kw) =>
+              v.title?.toLowerCase().includes(kw) ||
+              v.channel?.toLowerCase().includes(kw)
+            )
+          );
+
+          const best = officialMatch || list[0];
+          const embedUrl = `https://www.dailymotion.com/embed/video/${best.id}`;
+
+          console.log(`[Dailymotion] Resolved: "${best.title}" → ${embedUrl}`);
+          return {
+            success: true,
+            videoUrl: embedUrl,
             isM3U8: false,
-          }
-        ],
-        headers: {},
-      };
+            quality: 'Dailymotion',
+            sources: [{ url: embedUrl, quality: 'Dailymotion Embed', isM3U8: false }],
+            headers: {},
+          };
+        }
+      } catch (e) {
+        console.warn(`[Dailymotion] Query "${searchQuery}" failed:`, e.message);
+      }
     }
   } catch (err) {
-    console.error('[Dailymotion Fallback] Failed:', err.message);
+    console.error('[Dailymotion] Scraper failed:', err.message);
   }
   return null;
 };
 
 /**
- * Scrape episode list from anime4i.com for an anime title
+ * Scrape streaming source from donghua.io watch page
  */
-const getAnime4iEpisodes = async (animeTitle) => {
+const getDonghuaIoStream = async (targetId) => {
   try {
-    console.log(`[Anime4i] Searching for series page for title: "${animeTitle}"`);
-    const searchUrl = `https://anime4i.com/?s=${encodeURIComponent(animeTitle)}`;
-    const response = await axios.get(searchUrl, {
+    console.log(`[Donghua.io] Fetching stream for: "${targetId}"`);
+    const watchUrl = `https://www.donghua.io/${targetId}/`;
+
+    const response = await axios.get(watchUrl, {
       headers: SCRAPER_HEADERS,
-      timeout: 8000,
+      timeout: 10000,
     });
-    
-    const $ = cheerio.load(response.data);
-    let seriesUrl = null;
-    
-    $('a').each((i, el) => {
-      const href = $(el).attr('href');
-      if (href && href.includes('/anime/') && !href.includes('/genres/') && !href.includes('/year/') && !href.includes('/status/')) {
-        seriesUrl = href;
-        return false;
-      }
-    });
-
-    if (!seriesUrl) {
-      const slug = animeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      seriesUrl = `https://anime4i.com/anime/${slug}`;
-      console.log(`[Anime4i] No search series link found, guessing direct URL: ${seriesUrl}`);
-    } else {
-      console.log(`[Anime4i] Found series page URL from search: ${seriesUrl}`);
-    }
-
-    const pageRes = await axios.get(seriesUrl, {
-      headers: SCRAPER_HEADERS,
-      timeout: 8000,
-    });
-
-    const $page = cheerio.load(pageRes.data);
-    const episodes = [];
-
-    $page('.eplister ul li a').each((i, el) => {
-      const href = $page(el).attr('href');
-      if (href) {
-        const epNumText = $page(el).find('div').first().text().trim();
-        const epNum = parseInt(epNumText, 10);
-        const slug = href.replace(/https?:\/\/anime4i\.com\//, '').replace(/\/$/, '');
-        if (slug) {
-          episodes.push({
-            id: `anime4i:${slug}`,
-            number: !isNaN(epNum) ? epNum : (i + 1),
-            url: `/watch/anime4i:${slug}`,
-          });
-        }
-      }
-    });
-
-    if (episodes.length === 0) {
-      $page('.eplister a').each((i, el) => {
-        const href = $page(el).attr('href');
-        if (href && (href.includes('-episode-') || href.includes('-ep-'))) {
-          const slug = href.replace(/https?:\/\/anime4i\.com\//, '').replace(/\/$/, '');
-          const match = slug.match(/(?:episode|ep)-(\d+)/i);
-          const epNum = match ? parseInt(match[1], 10) : (i + 1);
-          if (slug && !episodes.some(ep => ep.id === `anime4i:${slug}`)) {
-            episodes.push({
-              id: `anime4i:${slug}`,
-              number: epNum,
-              url: `/watch/anime4i:${slug}`,
-            });
-          }
-        }
-      });
-    }
-
-    if (episodes.length > 0) {
-      episodes.sort((a, b) => a.number - b.number);
-      console.log(`[Anime4i] Successfully scraped ${episodes.length} episodes.`);
-      return episodes;
-    }
-  } catch (error) {
-    console.warn(`[Anime4i] Failed to scrape episodes:`, error.message);
-  }
-  return [];
-};
-
-/**
- * Scrape streaming source URL from anime4i.com watch page
- */
-const getAnime4iStream = async (targetId) => {
-  try {
-    console.log(`[Anime4i] Scraping streaming sources for: "${targetId}"`);
-    let watchPageUrl = `https://anime4i.com/${targetId}`;
-    let response;
-    try {
-      response = await axios.get(watchPageUrl, {
-        headers: SCRAPER_HEADERS,
-        timeout: 8000,
-      });
-    } catch (err) {
-      if (err.response && err.response.status === 404) {
-        console.log(`[Anime4i] Direct URL 404, searching for "${targetId}"`);
-        const searchUrl = `https://anime4i.com/?s=${encodeURIComponent(targetId)}`;
-        const searchRes = await axios.get(searchUrl, {
-          headers: SCRAPER_HEADERS,
-          timeout: 8000,
-        });
-        const $search = cheerio.load(searchRes.data);
-        let firstMatch = null;
-        $search('article h2 a, .entry-title a, .post-title a, a').each((i, el) => {
-          const href = $search(el).attr('href');
-          if (href && (href.includes('-episode-') || href.includes('-ep-'))) {
-            firstMatch = href;
-            return false;
-          }
-        });
-        if (firstMatch) {
-          watchPageUrl = firstMatch;
-          console.log(`[Anime4i] Resolved search watch URL: ${watchPageUrl}`);
-          response = await axios.get(watchPageUrl, {
-            headers: SCRAPER_HEADERS,
-            timeout: 8000,
-          });
-        } else {
-          throw new Error('No search match found for episode');
-        }
-      } else {
-        throw err;
-      }
-    }
 
     const $ = cheerio.load(response.data);
     const sources = [];
 
-    const pembed = $('#pembed, .player-embed').first();
-    const defaultEmbedBase64 = pembed.attr('data-default-embed');
-
-    if (defaultEmbedBase64) {
-      try {
-        const decoded = Buffer.from(defaultEmbedBase64, 'base64').toString('utf8');
-        const match = decoded.match(/src=["']([^"']+)["']/i);
-        if (match && match[1]) {
-          sources.push({
-            url: match[1],
-            quality: 'Default Player',
-            isM3U8: match[1].includes('.m3u8') || (!match[1].includes('dailymotion.com') && !match[1].includes('youtube.com')),
-          });
-        }
-      } catch (decodeErr) {
-        console.warn('[Anime4i] Failed to decode default embed:', decodeErr.message);
+    // Look for iframes or video embeds
+    $('iframe').each((i, el) => {
+      const src = $(el).attr('src') || $(el).attr('data-src');
+      if (src && src.length > 10) {
+        sources.push({
+          url: src,
+          quality: `Stream ${i + 1}`,
+          isM3U8: src.includes('.m3u8'),
+        });
       }
-    }
+    });
 
-    $('.mirror option').each((i, el) => {
-      const label = $(el).text().trim() || `Mirror ${i + 1}`;
-      const value = $(el).attr('value');
-      if (value) {
-        try {
-          const decoded = Buffer.from(value, 'base64').toString('utf8');
-          const match = decoded.match(/src=["']([^"']+)["']/i);
-          if (match && match[1]) {
-            if (!sources.some(s => s.url === match[1])) {
-              sources.push({
-                url: match[1],
-                quality: label,
-                isM3U8: match[1].includes('.m3u8') || (!match[1].includes('dailymotion.com') && !match[1].includes('youtube.com')),
-              });
-            }
-          }
-        } catch (e) {
-          // Ignore
+    // Look for data-embed attributes
+    $('[data-embed], [data-src], [data-stream]').each((i, el) => {
+      const embedVal =
+        $(el).attr('data-embed') || $(el).attr('data-src') || $(el).attr('data-stream');
+      if (embedVal && embedVal.startsWith('http')) {
+        if (!sources.some((s) => s.url === embedVal)) {
+          sources.push({
+            url: embedVal,
+            quality: 'Embed Source',
+            isM3U8: embedVal.includes('.m3u8'),
+          });
         }
       }
     });
 
-    if (sources.length === 0) {
-      $('iframe').each((i, el) => {
-        const src = $(el).attr('src');
-        if (src && (src.includes('dailymotion.com') || src.includes('youtube.com') || src.includes('.m3u8') || src.includes('embed'))) {
-          sources.push({
-            url: src,
-            quality: `Iframe Source ${i + 1}`,
-            isM3U8: src.includes('.m3u8') || (!src.includes('dailymotion.com') && !src.includes('youtube.com')),
-          });
-        }
-      });
-    }
+    // Try base64 decoded embeds
+    $('[data-enc], .player-embed, #pembed').each((i, el) => {
+      const val = $(el).attr('data-enc') || $(el).attr('data-default-embed');
+      if (val) {
+        try {
+          const decoded = Buffer.from(val, 'base64').toString('utf8');
+          const match = decoded.match(/src=["']([^"']+)["']/i);
+          if (match && match[1] && !sources.some((s) => s.url === match[1])) {
+            sources.push({
+              url: match[1],
+              quality: 'Decoded Embed',
+              isM3U8: match[1].includes('.m3u8'),
+            });
+          }
+        } catch (_) {}
+      }
+    });
 
     if (sources.length > 0) {
-      console.log(`[Anime4i] Successfully resolved ${sources.length} stream sources.`);
+      console.log(`[Donghua.io] Found ${sources.length} stream sources.`);
       return {
         success: true,
         videoUrl: sources[0].url,
         isM3U8: sources[0].isM3U8,
         quality: sources[0].quality,
-        sources: sources,
+        sources,
         headers: {},
       };
     }
   } catch (error) {
-    console.warn(`[Anime4i] Failed to scrape streaming URL:`, error.message);
+    console.warn(`[Donghua.io] Stream scrape failed:`, error.message);
   }
   return null;
 };
 
 /**
- * @desc    Get streaming URL for an episode from hianime.ro (or Dailymotion fallback)
- * @route   GET /api/watch/*
+ * @desc    Get streaming URL for a donghua episode
+ * @route   GET /api/anime/watch/*
  */
 const getWatchUrl = async (req, res) => {
   try {
     let episodeId = req.params[0] || req.params.episodeId || req.url.split('/watch/')[1];
     episodeId = decodeURIComponent(episodeId);
 
-    let provider = 'hianime';
+    let provider = 'dailymotion';
     let targetId = episodeId;
+
     if (episodeId.includes(':')) {
       const parts = episodeId.split(':');
       provider = parts[0];
       targetId = parts.slice(1).join(':');
     }
 
-    console.log(`[Watch] Requested provider: "${provider}", ID: "${targetId}"`);
+    console.log(`[Watch] Provider: "${provider}", ID: "${targetId}"`);
 
-    // 1. Anime4i Request
-    if (provider === 'anime4i') {
-      const data = await getAnime4iStream(targetId);
+    // ── 1. Donghua.io ──────────────────────────────────────────────
+    if (provider === 'donghua') {
+      const data = await getDonghuaIoStream(targetId);
       if (data) return res.json(data);
     }
 
-    // 2. AnimePahe Request
-    if (provider === 'animepahe') {
-      try {
-        console.log(`[AnimePahe] Fetching sources for episodeId: "${targetId}"`);
-        const data = await animepahe.fetchEpisodeSources(targetId);
-        
-        if (data && data.sources && data.sources.length > 0) {
-          const mappedSources = data.sources.map((s) => ({
-            url: s.url,
-            quality: s.quality || 'Auto',
-            isM3U8: s.isM3U8 || s.url.includes('.m3u8') || !s.url.includes('.mp4'),
-          }));
-
-          const primarySource = mappedSources.find((s) => s.quality === 'default') || mappedSources[0];
-
-          console.log(`[AnimePahe] Successfully resolved ${mappedSources.length} sources.`);
-          return res.json({
-            success: true,
-            videoUrl: primarySource.url,
-            isM3U8: primarySource.isM3U8,
-            quality: primarySource.quality,
-            sources: mappedSources,
-            headers: data.headers || {},
-          });
-        }
-      } catch (paheErr) {
-        console.warn('[AnimePahe] Failed to fetch episode sources:', paheErr.message);
-      }
-    }
-
-    // 3. Hianime Scraping Request
-    if (provider === 'hianime') {
-      try {
-        console.log(`[Hianime Scraper] Fetching servers for episodeId: "${targetId}"`);
-        const { data } = await axios.get(`https://hianime.ro/wp-json/v1/otakuthemes/episode/servers?episodeId=${targetId}`, {
-          headers: SCRAPER_HEADERS,
-          timeout: 6000,
-        });
-
-        if (data && data.status && data.html) {
-          const $ = cheerio.load(data.html);
-          const sources = [];
-
-          $('.server-item').each((i, el) => {
-            const serverName = $(el).attr('data-server-name') || $(el).text().trim();
-            const hash = $(el).attr('data-hash');
-            if (hash) {
-              try {
-                const url = Buffer.from(hash, 'base64').toString('utf8');
-                sources.push({
-                  url: url,
-                  quality: serverName,
-                  isM3U8: url.includes('.m3u8') || url.includes('.mp4') === false,
-                });
-              } catch (decodeErr) {
-                console.warn('[Hianime Scraper] Failed to decode server hash:', decodeErr.message);
-              }
-            }
-          });
-
-          if (sources.length > 0) {
-            console.log(`[Hianime Scraper] Resolved ${sources.length} stream sources.`);
-            return res.json({
-              success: true,
-              videoUrl: sources[0].url,
-              isM3U8: sources[0].isM3U8,
-              quality: sources[0].quality,
-              sources: sources,
-              headers: {},
-            });
-          }
-        }
-      } catch (hianimeErr) {
-        console.warn(`[Hianime Scraper] Failed to fetch servers: ${hianimeErr.message}`);
-      }
-    }
-
-    // 4. Direct Dailymotion Request
+    // ── 2. Dailymotion ─────────────────────────────────────────────
     if (provider === 'dailymotion') {
-      const fallback = await getDailymotionFallback(targetId);
-      if (fallback) {
-        return res.json(fallback);
+      // Check if targetId looks like a DM video ID (short alphanumeric)
+      if (/^x[a-z0-9]{6}$/i.test(targetId)) {
+        const embedUrl = `https://www.dailymotion.com/embed/video/${targetId}`;
+        return res.json({
+          success: true,
+          videoUrl: embedUrl,
+          isM3U8: false,
+          quality: 'Dailymotion',
+          sources: [{ url: embedUrl, quality: 'Dailymotion Embed', isM3U8: false }],
+          headers: {},
+        });
       }
+      // Otherwise search Dailymotion
+      const data = await getDailymotionStream(targetId);
+      if (data) return res.json(data);
     }
 
-    // =========================================================================
-    // UNIFIED AUTO-HEALING CHAIN (If requested provider failed/returned no stream)
-    // =========================================================================
-    console.log(`[Auto-Healing] Provider "${provider}" failed. Healing "${targetId}"...`);
+    // ── 3. YouTube Embed ───────────────────────────────────────────
+    if (provider === 'youtube') {
+      // targetId is a YouTube video ID
+      const embedUrl = `https://www.youtube.com/embed/${targetId}?autoplay=1`;
+      return res.json({
+        success: true,
+        videoUrl: embedUrl,
+        isM3U8: false,
+        quality: 'YouTube Official',
+        sources: [{ url: embedUrl, quality: 'YouTube Embed', isM3U8: false }],
+        headers: {},
+      });
+    }
 
-    // 1. Try Anime4i Fallback Scraper
+    // ══════════════════════════════════════════════════════════════
+    // AUTO-HEALING CHAIN — try every provider in sequence
+    // ══════════════════════════════════════════════════════════════
+    console.log(`[Auto-Heal] Provider "${provider}" failed. Trying fallback chain...`);
+
+    // Attempt 1: Donghua.io
     try {
-      const streamData = await getAnime4iStream(targetId);
-      if (streamData) {
-        console.log(`[Auto-Healing] Successfully healed via Anime4i!`);
-        return res.json(streamData);
+      const stream = await getDonghuaIoStream(targetId);
+      if (stream) {
+        console.log(`[Auto-Heal] Healed via Donghua.io`);
+        return res.json(stream);
       }
     } catch (e) {
-      console.warn('[Auto-Healing] Anime4i attempt failed:', e.message);
+      console.warn('[Auto-Heal] Donghua.io failed:', e.message);
     }
 
-    // 2. Try AnimePahe Fallback
+    // Attempt 2: Dailymotion search
     try {
-      const { animeName, episodeNum } = parseEpisodeInfo(targetId);
-      const searchRes = await animepahe.search(animeName);
-      const results = searchRes?.results || [];
-      const matchedAnime = results[0];
-
-      if (matchedAnime) {
-        const animeDetails = await animepahe.fetchAnimeInfo(matchedAnime.id);
-        const targetEp = animeDetails?.episodes?.find(
-          (ep) => Number(ep.number) === Number(episodeNum)
-        );
-
-        if (targetEp) {
-          const sourceData = await animepahe.fetchEpisodeSources(targetEp.id);
-          if (sourceData && sourceData.sources && sourceData.sources.length > 0) {
-            const mappedSources = sourceData.sources.map((s) => ({
-              url: s.url,
-              quality: s.quality || 'Auto',
-              isM3U8: s.isM3U8 || s.url.includes('.m3u8') || !s.url.includes('.mp4'),
-            }));
-            const primarySource = mappedSources.find((s) => s.quality === 'default') || mappedSources[0];
-            console.log(`[Auto-Healing] Successfully healed via AnimePahe!`);
-            return res.json({
-              success: true,
-              videoUrl: primarySource.url,
-              isM3U8: primarySource.isM3U8,
-              quality: primarySource.quality,
-              sources: mappedSources,
-              headers: sourceData.headers || {},
-            });
-          }
-        }
+      const stream = await getDailymotionStream(targetId);
+      if (stream) {
+        console.log(`[Auto-Heal] Healed via Dailymotion`);
+        return res.json(stream);
       }
-    } catch (healErr) {
-      console.warn('[Auto-Healing] AnimePahe attempt failed:', healErr.message);
+    } catch (e) {
+      console.warn('[Auto-Heal] Dailymotion failed:', e.message);
     }
 
-    // 3. Try Dailymotion Fallback
-    const fallback = await getDailymotionFallback(targetId);
-    if (fallback) {
-      console.log(`[Auto-Healing] Successfully healed via Dailymotion!`);
-      return res.json(fallback);
-    }
-
-    res.status(404).json({ 
-      success: false, 
-      message: 'This episode has not aired yet or no streaming sources were found. Please check back later!' 
+    return res.status(404).json({
+      success: false,
+      message:
+        'No streaming source found for this episode. Try switching servers or check back later!',
     });
   } catch (error) {
     console.error('Watch error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch watch URL' });
+    res.status(500).json({ success: false, message: 'Failed to fetch stream URL' });
   }
 };
 

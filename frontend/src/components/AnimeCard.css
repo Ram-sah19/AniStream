@@ -61,7 +61,7 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  background: linear-gradient(135deg, #d4291f, #e8a830);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,7 +70,7 @@
   transform: scale(0.6);
   opacity: 0;
   transition: transform 0.35s var(--ease-bounce), opacity 0.3s var(--ease);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 30px rgba(212, 41, 31, 0.6);
 }
 
 .anime-card:hover .card-play-btn {
@@ -101,7 +101,7 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #d4291f, #a81f16);
   padding: 3px 9px;
   border-radius: 6px;
   font-size: 0.68rem;
@@ -135,7 +135,7 @@
   transition: color 0.2s var(--ease);
 }
 
-.anime-card:hover .card-title { color: #c084fc; }
+.anime-card:hover .card-title { color: #e8a830; }
 
 .card-meta {
   display: flex;
@@ -147,11 +147,11 @@
 .card-episodes {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.1);
+  color: #e8a830;
+  background: rgba(232, 168, 48, 0.1);
   padding: 2px 8px;
   border-radius: 5px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(232, 168, 48, 0.2);
 }
 
 .card-genre {

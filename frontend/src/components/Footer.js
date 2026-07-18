@@ -10,12 +10,12 @@ const Footer = () => {
           {/* Brand */}
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
-              <span className="footer-logo-icon">▶</span>
-              <span className="footer-logo-text">AniStream</span>
+              <span className="footer-logo-icon">🐉</span>
+              <span className="footer-logo-text">DonghuaStream</span>
             </Link>
             <p className="footer-desc">
-              Your ultimate destination for streaming anime. Watch thousands of
-              episodes in HD quality for free.
+              Your ultimate destination for Chinese anime (Donghua). Watch thousands of
+              episodes from top studios like Tencent, Bilibili, and iQIYI for free.
             </p>
           </div>
 
@@ -32,9 +32,9 @@ const Footer = () => {
           <div className="footer-links-group">
             <h4>Genres</h4>
             <span>Action</span>
-            <span>Romance</span>
-            <span>Comedy</span>
+            <span>Cultivation</span>
             <span>Fantasy</span>
+            <span>Romance</span>
           </div>
 
           {/* Legal */}
@@ -48,7 +48,7 @@ const Footer = () => {
         </div>
 
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} AniStream. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} DonghuaStream. All rights reserved.</p>
           <p className="footer-disclaimer">
             This site does not store any files on its server. All contents are provided by non-affiliated third parties.
           </p>

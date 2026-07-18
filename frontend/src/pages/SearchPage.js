@@ -48,9 +48,9 @@ const SearchPage = () => {
 
         {!query && (
           <div className="search-empty">
-            <span>🔎</span>
-            <h2>Search for Anime</h2>
-            <p>Use the search bar above to find your favorite anime</p>
+            <span>🖏</span>
+            <h2>Search for Donghua</h2>
+            <p>Use the search bar above to find your favorite Chinese anime</p>
           </div>
         )}
 

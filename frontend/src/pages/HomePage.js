@@ -19,7 +19,7 @@ const HomePage = () => {
         setTrendingAnime(data.results || []);
       } catch (err) {
         console.error('Failed to fetch trending:', err);
-        setError('Failed to load trending anime. Make sure the backend is running on port 5000.');
+        setError('Failed to load trending donghua. Make sure the backend is running on port 5000.');
       } finally {
         setLoading(false);
       }
@@ -41,10 +41,10 @@ const HomePage = () => {
         <div className="section-header">
           <div className="section-title-group">
             <h2 className="section-title">
-              <span className="section-icon">🔥</span>
-              Trending Now
+              <span className="section-icon">🐉</span>
+              Trending Donghua
             </h2>
-            <p className="section-subtitle">Currently airing and most popular anime</p>
+            <p className="section-subtitle">Top trending Chinese anime series right now</p>
           </div>
           <Link to="/popular" className="section-view-all">View All →</Link>
         </div>
@@ -70,7 +70,7 @@ const HomePage = () => {
           <div className="anime-grid" id="trending-grid">
             {trendingAnime.map((anime, index) => (
               <div
-                key={anime.mal_id ? `trending-${anime.mal_id}-${index}` : `trending-${anime.id || index}`}
+                key={anime.id ? `trending-${anime.id}-${index}` : `trending-${index}`}
                 className="anime-grid-item"
                 style={{ animationDelay: `${index * 0.04}s` }}
               >

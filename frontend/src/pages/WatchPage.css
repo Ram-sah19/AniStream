@@ -33,7 +33,7 @@
   transition: color 0.2s var(--ease);
 }
 
-.watch-breadcrumb a:hover { color: #a78bfa; }
+.watch-breadcrumb a:hover { color: #e8a830; }
 
 .breadcrumb-current {
   color: var(--text-secondary);
@@ -79,7 +79,7 @@
 }
 
 .autoplay-toggle input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  background: linear-gradient(135deg, #d4291f, #e8a830);
   border-color: transparent;
 }
 
@@ -106,12 +106,12 @@
 }
 
 .next-ep-label a {
-  color: #a78bfa;
+  color: #e8a830;
   font-weight: 600;
   transition: color 0.2s var(--ease);
 }
 
-.next-ep-label a:hover { color: #c084fc; }
+.next-ep-label a:hover { color: #f5c842; }
 
 /* ── Server switcher ── */
 .server-selector-container {
@@ -128,7 +128,7 @@
 .server-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #a78bfa;
+  color: #e8a830;
   letter-spacing: 0.2px;
 }
 
@@ -151,15 +151,15 @@
 }
 
 .server-btn:hover {
-  background: rgba(167, 139, 250, 0.1);
+  background: rgba(232, 168, 48, 0.1);
   color: var(--text-primary);
-  border-color: rgba(167, 139, 250, 0.3);
+  border-color: rgba(232, 168, 48, 0.3);
 }
 
 .server-btn.active {
-  background: rgba(139, 92, 246, 0.2);
-  color: #c084fc;
-  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(212, 41, 31, 0.18);
+  color: #e8a830;
+  border-color: rgba(232, 168, 48, 0.45);
   font-weight: 600;
 }
 

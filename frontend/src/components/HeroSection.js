@@ -14,6 +14,7 @@ const HeroSection = ({ anime }) => {
     synopsis,
     genres = [],
     score,
+    studio,
   } = anime;
 
   const linkId = id || mal_id;
@@ -38,9 +39,10 @@ const HeroSection = ({ anime }) => {
       {/* Content */}
       <div className="hero-content">
         <div className="hero-badges">
-          <span className="hero-badge trending-badge">🔥 Trending</span>
+          <span className="hero-badge trending-badge">🐉 Trending Donghua</span>
           {score && <span className="hero-badge score-badge">⭐ {score}</span>}
           {genres[0] && <span className="hero-badge genre-badge">{genres[0]}</span>}
+          {studio && <span className="hero-badge studio-badge">🏮 {studio}</span>}
         </div>
 
         <h1 className="hero-title">{displayTitle}</h1>
@@ -50,7 +52,7 @@ const HeroSection = ({ anime }) => {
             ? synopsis.length > 200
               ? synopsis.substring(0, 200) + '...'
               : synopsis
-            : 'Start watching this amazing anime series now!'}
+            : 'Discover this amazing Chinese anime series now!'}
         </p>
 
         <div className="hero-actions">
