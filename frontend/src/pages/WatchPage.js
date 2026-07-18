@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import VideoPlayer from '../components/VideoPlayer';
 import EpisodeList from '../components/EpisodeList';
 import AdSlot from '../components/AdSlot';
@@ -8,6 +8,7 @@ import './WatchPage.css';
 
 const WatchPage = () => {
   const { episodeId } = useParams();
+  const navigate = useNavigate();
   const [videoUrl, setVideoUrl] = useState('');
   const [isM3U8, setIsM3U8] = useState(true);
   const [sources, setSources] = useState([]);
@@ -16,6 +17,9 @@ const WatchPage = () => {
   const [error, setError] = useState(null);
   const [animeInfo, setAnimeInfo] = useState(null);
   const [episodeTitle, setEpisodeTitle] = useState('');
+  const [autoPlay, setAutoPlay] = useState(true);
+  const autoPlayRef = useRef(autoPlay);
+  autoPlayRef.current = autoPlay;
 
   // Parse current provider and core episode ID
   let currentProvider = 'hianime';
@@ -26,13 +30,21 @@ const WatchPage = () => {
     coreId = parts.slice(1).join(':');
   }
 
-  // Parse anime ID from episode ID (supports both HiAnime "$episode$" and legacy "-episode-")
+  // Parse anime ID from episode ID
   const getAnimeIdFromEpisode = (epId) => {
-    if (epId.includes('$episode$')) {
-      return epId.split('$episode$')[0];
-    }
+    if (epId.includes('$episode$')) return epId.split('$episode$')[0];
     const parts = epId.split('-episode-');
     return parts.length > 1 ? parts[0] : epId;
+  };
+
+  // Find next episode once animeInfo is loaded
+  const currentEpIndex = animeInfo?.episodes?.findIndex((ep) => ep.id === episodeId) ?? -1;
+  const nextEpisode = currentEpIndex >= 0 ? animeInfo?.episodes?.[currentEpIndex + 1] : null;
+
+  const handleVideoEnded = () => {
+    if (autoPlayRef.current && nextEpisode) {
+      navigate(`/watch/${encodeURIComponent(nextEpisode.id)}`);
+    }
   };
 
   useEffect(() => {
@@ -41,13 +53,11 @@ const WatchPage = () => {
         setLoading(true);
         setError(null);
 
-        // Format episode title from ID
         const formattedTitle = episodeId
           .replace(/-/g, ' ')
           .replace(/\b\w/g, (c) => c.toUpperCase());
         setEpisodeTitle(formattedTitle);
 
-        // Fetch video URL from backend (VidStreaming/GogoCDN HLS)
         const data = await fetchWatchUrl(episodeId);
         if (data.success && data.videoUrl) {
           setVideoUrl(data.videoUrl);
@@ -68,7 +78,6 @@ const WatchPage = () => {
       }
     };
 
-    // Fetch anime info for episode list
     const loadAnimeInfo = async () => {
       try {
         const animeId = getAnimeIdFromEpisode(episodeId);
@@ -110,7 +119,28 @@ const WatchPage = () => {
             isM3U8={isM3U8}
             sources={sources}
             headers={streamHeaders}
+            onEnded={handleVideoEnded}
           />
+
+          {/* Auto-play bar */}
+          <div className="autoplay-bar">
+            <label className="autoplay-toggle">
+              <input
+                type="checkbox"
+                checked={autoPlay}
+                onChange={(e) => setAutoPlay(e.target.checked)}
+              />
+              <span>Auto-play next episode</span>
+            </label>
+            {nextEpisode && (
+              <span className="next-ep-label">
+                Up next:{' '}
+                <Link to={`/watch/${encodeURIComponent(nextEpisode.id)}`}>
+                  Episode {nextEpisode.number}
+                </Link>
+              </span>
+            )}
+          </div>
 
           {/* Server Switcher */}
           <div className="server-selector-container">
@@ -143,7 +173,7 @@ const WatchPage = () => {
             </div>
           </div>
 
-          {/* Ad Slot — Below Player (Banner) */}
+          {/* Ad Slot — Below Player */}
           <AdSlot
             position="banner"
             size="728x90"
@@ -170,28 +200,12 @@ const WatchPage = () => {
 
         {/* Sidebar */}
         <aside className="watch-sidebar">
-          {/* Ad Slot — Sidebar (300x250) */}
-          <AdSlot
-            position="sidebar"
-            size="300x250"
-            label="Advertisement Banner Slot — Sidebar"
-          />
+          <AdSlot position="sidebar" size="300x250" label="Advertisement Banner Slot — Sidebar" />
+          <AdSlot position="sidebar" size="300x250" label="Advertisement Banner Slot — Sidebar 2" />
 
-          {/* Ad Slot — Sidebar 2 */}
-          <AdSlot
-            position="sidebar"
-            size="300x250"
-            label="Advertisement Banner Slot — Sidebar 2"
-          />
-
-          {/* Quick Info Card */}
           {animeInfo && (
             <div className="sidebar-info-card">
-              <img
-                src={animeInfo.image}
-                alt={animeInfo.title}
-                className="sidebar-poster"
-              />
+              <img src={animeInfo.image} alt={animeInfo.title} className="sidebar-poster" />
               <div className="sidebar-meta">
                 <h4>{animeInfo.title}</h4>
                 <p>{animeInfo.status} • {animeInfo.totalEpisodes || '?'} EP</p>
@@ -208,13 +222,8 @@ const WatchPage = () => {
         </aside>
       </div>
 
-      {/* Bottom Ad Slot */}
       <div className="watch-bottom-ad">
-        <AdSlot
-          position="footer"
-          size="728x90"
-          label="Advertisement Banner Slot — Footer"
-        />
+        <AdSlot position="footer" size="728x90" label="Advertisement Banner Slot — Footer" />
       </div>
     </div>
   );

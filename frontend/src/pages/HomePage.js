@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import HeroSection from '../components/HeroSection';
 import AnimeCard from '../components/AnimeCard';
 import AdSlot from '../components/AdSlot';
@@ -23,31 +24,29 @@ const HomePage = () => {
         setLoading(false);
       }
     };
-
     loadTrending();
   }, []);
 
-  // Pick the first anime as the hero feature
   const heroAnime = trendingAnime[0] || null;
 
   return (
     <div className="home-page" id="home-page">
-      {/* Hero Banner */}
       {heroAnime && <HeroSection anime={heroAnime} />}
 
-      {/* Ad Slot - Top Banner */}
       <div className="home-ad-top">
         <AdSlot position="header" size="728x90" label="Advertisement Banner Slot — Top" />
       </div>
 
-      {/* Trending Section */}
       <section className="anime-section" id="trending-section">
         <div className="section-header">
-          <h2 className="section-title">
-            <span className="section-icon">🔥</span>
-            Trending Now
-          </h2>
-          <p className="section-subtitle">Currently airing and most popular anime</p>
+          <div className="section-title-group">
+            <h2 className="section-title">
+              <span className="section-icon">🔥</span>
+              Trending Now
+            </h2>
+            <p className="section-subtitle">Currently airing and most popular anime</p>
+          </div>
+          <Link to="/popular" className="section-view-all">View All →</Link>
         </div>
 
         {loading ? (
@@ -73,7 +72,7 @@ const HomePage = () => {
               <div
                 key={anime.mal_id ? `trending-${anime.mal_id}-${index}` : `trending-${anime.id || index}`}
                 className="anime-grid-item"
-                style={{ animationDelay: `${index * 0.05}s` }}
+                style={{ animationDelay: `${index * 0.04}s` }}
               >
                 <AnimeCard anime={anime} />
               </div>
@@ -82,7 +81,6 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* Ad Slot - Bottom Banner */}
       <div className="home-ad-bottom">
         <AdSlot position="banner" size="728x90" label="Advertisement Banner Slot — Bottom" />
       </div>

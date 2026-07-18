@@ -2,23 +2,34 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { ANIME } = require('@consumet/extensions');
 
-const ANILIST_URL = 'https://graphql.anilist.co';
+const JIKAN_URL = 'https://api.jikan.moe/v4';
 const animepahe = new ANIME.AnimePahe();
 
-const queryAniList = async (query, variables) => {
-  const { data } = await axios.post(ANILIST_URL, {
-    query,
-    variables,
-  }, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    timeout: 8000,
+// Jikan rate-limit: 3 req/sec, 60 req/min — add small delay between calls
+const jikanGet = async (path, params = {}) => {
+  const { data } = await axios.get(`${JIKAN_URL}${path}`, {
+    params,
+    headers: { 'Accept': 'application/json' },
+    timeout: 10000,
   });
   return data;
 };
+
+const mapJikanAnime = (item) => ({
+  mal_id: item.mal_id,
+  id: String(item.mal_id),
+  title: item.title_english || item.title,
+  title_english: item.title_english,
+  image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
+  score: item.score ? Number(item.score.toFixed(1)) : null,
+  episodes: item.episodes,
+  status: item.status,
+  synopsis: item.synopsis || '',
+  genres: item.genres?.map((g) => g.name) || [],
+  year: item.year || item.aired?.prop?.from?.year,
+  season: item.season,
+  type: item.type,
+});
 
 // Helper headers for hianime.ro scraping
 const SCRAPER_HEADERS = {
@@ -28,57 +39,14 @@ const SCRAPER_HEADERS = {
 };
 
 /**
- * @desc    Get trending / top-airing Chinese anime
+ * @desc    Get trending / top-airing anime
  * @route   GET /api/anime/trending
  */
 const getTrending = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const query = `
-      query ($page: Int, $perPage: Int) {
-        Page (page: $page, perPage: $perPage) {
-          media (type: ANIME, countryOfOrigin: "CN", sort: TRENDING_DESC) {
-            id
-            title {
-              romaji
-              english
-              native
-            }
-            coverImage {
-              large
-            }
-            averageScore
-            episodes
-            status
-            description
-            genres
-            seasonYear
-            season
-            format
-          }
-        }
-      }
-    `;
-
-    const data = await queryAniList(query, { page, perPage: 24 });
-    const mediaList = data?.data?.Page?.media || [];
-
-    const anime = mediaList.map((item) => ({
-      mal_id: item.id,
-      id: String(item.id),
-      title: item.title.english || item.title.romaji || item.title.native,
-      title_english: item.title.english,
-      image: item.coverImage.large,
-      score: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : null,
-      episodes: item.episodes,
-      status: item.status,
-      synopsis: item.description?.replace(/<[^>]*>/g, '') || '',
-      genres: item.genres || [],
-      year: item.seasonYear,
-      season: item.season ? item.season.toLowerCase() : null,
-      type: item.format,
-    }));
-
+    const data = await jikanGet('/top/anime', { page, filter: 'airing', limit: 24 });
+    const anime = (data.data || []).map(mapJikanAnime);
     res.json({ success: true, results: anime });
   } catch (error) {
     console.error('Trending fetch error:', error.message);
@@ -87,57 +55,14 @@ const getTrending = async (req, res) => {
 };
 
 /**
- * @desc    Get popular Chinese anime of all time
+ * @desc    Get popular anime of all time
  * @route   GET /api/anime/popular
  */
 const getPopular = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const query = `
-      query ($page: Int, $perPage: Int) {
-        Page (page: $page, perPage: $perPage) {
-          media (type: ANIME, countryOfOrigin: "CN", sort: POPULARITY_DESC) {
-            id
-            title {
-              romaji
-              english
-              native
-            }
-            coverImage {
-              large
-            }
-            averageScore
-            episodes
-            status
-            description
-            genres
-            seasonYear
-            season
-            format
-          }
-        }
-      }
-    `;
-
-    const data = await queryAniList(query, { page, perPage: 24 });
-    const mediaList = data?.data?.Page?.media || [];
-
-    const anime = mediaList.map((item) => ({
-      mal_id: item.id,
-      id: String(item.id),
-      title: item.title.english || item.title.romaji || item.title.native,
-      title_english: item.title.english,
-      image: item.coverImage.large,
-      score: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : null,
-      episodes: item.episodes,
-      status: item.status,
-      synopsis: item.description?.replace(/<[^>]*>/g, '') || '',
-      genres: item.genres || [],
-      year: item.seasonYear,
-      season: item.season ? item.season.toLowerCase() : null,
-      type: item.format,
-    }));
-
+    const data = await jikanGet('/top/anime', { page, filter: 'bypopularity', limit: 24 });
+    const anime = (data.data || []).map(mapJikanAnime);
     res.json({ success: true, results: anime });
   } catch (error) {
     console.error('Popular fetch error:', error.message);
@@ -146,58 +71,17 @@ const getPopular = async (req, res) => {
 };
 
 /**
- * @desc    Search Chinese anime by query
+ * @desc    Search anime by query
  * @route   GET /api/anime/search
  */
 const searchAnime = async (req, res) => {
   try {
     const { q } = req.query;
     let anime = [];
-
     if (q) {
-      const query = `
-        query ($search: String, $page: Int, $perPage: Int) {
-          Page (page: $page, perPage: $perPage) {
-            media (type: ANIME, countryOfOrigin: "CN", search: $search) {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              coverImage {
-                large
-              }
-              averageScore
-              episodes
-              status
-              description
-              genres
-              seasonYear
-              season
-              format
-            }
-          }
-        }
-      `;
-
-      const data = await queryAniList(query, { search: q, page: 1, perPage: 24 });
-      const mediaList = data?.data?.Page?.media || [];
-
-      anime = mediaList.map((item) => ({
-        mal_id: item.id,
-        id: String(item.id),
-        title: item.title.english || item.title.romaji || item.title.native,
-        title_english: item.title.english,
-        image: item.coverImage.large,
-        score: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : null,
-        episodes: item.episodes,
-        status: item.status,
-        synopsis: item.description?.replace(/<[^>]*>/g, '') || '',
-        genres: item.genres || [],
-      }));
+      const data = await jikanGet('/anime', { q, limit: 24, sfw: true });
+      anime = (data.data || []).map(mapJikanAnime);
     }
-
     res.json({ success: true, results: anime });
   } catch (error) {
     console.error('Search error:', error.message);
@@ -251,55 +135,22 @@ const getAnimeInfo = async (req, res) => {
       resolvedId = parts.slice(1).join(':');
     }
 
-    // If ID is not numeric (e.g. alphanumeric slug), search AniList first to find the ID
+    // If ID is not numeric, search Jikan to find the MAL ID
     if (!/^\d+$/.test(resolvedId)) {
-      console.log(`[Metadata] Alphanumeric ID "${resolvedId}". Searching AniList...`);
+      console.log(`[Metadata] Alphanumeric ID "${resolvedId}". Searching Jikan...`);
       const cleanSlug = resolvedId.replace(/-/g, ' ');
-      const query = `
-        query ($search: String) {
-          Page (page: 1, perPage: 1) {
-            media (type: ANIME, countryOfOrigin: "CN", search: $search) {
-              id
-            }
-          }
-        }
-      `;
-      const searchRes = await queryAniList(query, { search: cleanSlug });
-      const foundItem = searchRes?.data?.Page?.media?.[0];
+      const searchRes = await jikanGet('/anime', { q: cleanSlug, limit: 1 });
+      const foundItem = searchRes?.data?.[0];
       if (foundItem) {
-        resolvedId = String(foundItem.id);
+        resolvedId = String(foundItem.mal_id);
       } else {
         return res.status(404).json({ success: false, message: 'Anime details not found' });
       }
     }
 
-    console.log(`[Metadata] Fetching anime info for AniList ID: "${resolvedId}"`);
-    const query = `
-      query ($id: Int) {
-        Media (id: $id, type: ANIME) {
-          id
-          title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            extraLarge
-            large
-          }
-          averageScore
-          episodes
-          status
-          description
-          genres
-          seasonYear
-          season
-          format
-        }
-      }
-    `;
-    const detailsRes = await queryAniList(query, { id: parseInt(resolvedId, 10) });
-    const item = detailsRes?.data?.Media;
+    console.log(`[Metadata] Fetching anime info for MAL ID: "${resolvedId}"`);
+    const detailsRes = await jikanGet(`/anime/${resolvedId}/full`);
+    const item = detailsRes?.data;
 
     if (!item) {
       return res.status(404).json({ success: false, message: 'Anime details not found' });
@@ -308,8 +159,8 @@ const getAnimeInfo = async (req, res) => {
     // Determine expected episode count
     const expectedCount = item.episodes || 12;
     let episodes = [];
-    const mainTitle = item.title.english || item.title.romaji || item.title.native;
-    const backupTitle = item.title.romaji !== mainTitle ? item.title.romaji : (item.title.english || '');
+    const mainTitle = item.title_english || item.title;
+    const backupTitle = item.title !== mainTitle ? item.title : '';
 
     // Tier 1: Fetch episodes from Anime4i (Primary for Chinese Anime)
     try {
@@ -411,19 +262,19 @@ const getAnimeInfo = async (req, res) => {
     res.json({
       success: true,
       anime: {
-        id: String(item.id),
-        mal_id: item.id,
-        title: item.title.english || item.title.romaji || item.title.native,
-        title_english: item.title.english,
-        image: item.coverImage.extraLarge || item.coverImage.large,
-        description: item.description?.replace(/<[^>]*>/g, '') || '',
+        id: String(item.mal_id),
+        mal_id: item.mal_id,
+        title: item.title_english || item.title,
+        title_english: item.title_english,
+        image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
+        description: item.synopsis || '',
         status: item.status,
-        genres: item.genres || [],
+        genres: item.genres?.map((g) => g.name) || [],
         totalEpisodes: item.episodes || episodes.length,
-        score: item.averageScore ? Number((item.averageScore / 10).toFixed(1)) : null,
-        year: item.seasonYear,
-        season: item.season ? item.season.toLowerCase() : null,
-        type: item.format,
+        score: item.score ? Number(item.score.toFixed(1)) : null,
+        year: item.year || item.aired?.prop?.from?.year,
+        season: item.season,
+        type: item.type,
         episodes: episodes,
       },
     });
