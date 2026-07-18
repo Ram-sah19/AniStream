@@ -35,7 +35,7 @@ export const fetchAnimeInfo = async (animeId) => {
 };
 
 export const fetchWatchUrl = async (episodeId) => {
-  const { data } = await API.get(`/anime/watch/${encodeURIComponent(episodeId)}`);
+  const { data } = await API.get(`/anime/watch/${encodeURIComponent(episodeId)}`, { timeout: 60000 });
   return data;
 };
 
