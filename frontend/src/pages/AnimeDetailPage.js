@@ -39,13 +39,13 @@ const AnimeDetailPage = () => {
         genres: anime.genres,
         status: anime.status,
       });
-      setActionMsg('✅ Added to Watchlist!');
+      setActionMsg('Added to Watchlist!');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err) {
       if (err.response?.status === 409) {
         setActionMsg('Already in Watchlist');
       } else {
-        setActionMsg('❌ Failed. Is MongoDB running?');
+        setActionMsg('Failed. Is MongoDB running?');
       }
       setTimeout(() => setActionMsg(''), 3000);
     }
@@ -59,13 +59,13 @@ const AnimeDetailPage = () => {
         image: anime.image,
         genres: anime.genres,
       });
-      setActionMsg('⭐ Added to Favorites!');
+      setActionMsg('Added to Favorites!');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err) {
       if (err.response?.status === 409) {
         setActionMsg('Already in Favorites');
       } else {
-        setActionMsg('❌ Failed. Is MongoDB running?');
+        setActionMsg('Failed. Is MongoDB running?');
       }
       setTimeout(() => setActionMsg(''), 3000);
     }
@@ -92,7 +92,13 @@ const AnimeDetailPage = () => {
     return (
       <div className="detail-page">
         <div className="detail-error">
-          <span>⚠️</span>
+          <span className="empty-icon-svg red">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </span>
           <h2>Error Loading Anime</h2>
           <p>{error}</p>
           <Link to="/" className="back-home-btn">← Back to Home</Link>
@@ -137,7 +143,12 @@ const AnimeDetailPage = () => {
                 <span className="detail-badge badge-episodes">{anime.totalEpisodes} Episodes</span>
               )}
               {anime.score && (
-                <span className="detail-badge badge-score">⭐ {anime.score}</span>
+                <span className="detail-badge badge-score">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                  {anime.score}
+                </span>
               )}
               {anime.year && <span className="detail-badge badge-year">{anime.year}</span>}
               {anime.subOrDub && (
@@ -167,7 +178,10 @@ const AnimeDetailPage = () => {
                   className="action-btn btn-watch"
                   id="watch-first-episode-btn"
                 >
-                  ▶ Watch Episode 1
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}>
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  Watch Episode 1
                 </Link>
               )}
               <button
@@ -175,14 +189,14 @@ const AnimeDetailPage = () => {
                 className="action-btn btn-watchlist"
                 id="add-watchlist-btn"
               >
-                📋 Add to Watchlist
+                Add to Watchlist
               </button>
               <button
                 onClick={handleAddToFavorites}
                 className="action-btn btn-favorite"
                 id="add-favorite-btn"
               >
-                ⭐ Favorite
+                Favorite
               </button>
             </div>
 

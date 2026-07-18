@@ -668,9 +668,15 @@ const resolveDailymotionStream = async (targetId) => {
 
 const parseEpisodeInfo = (id) => {
   let cleanId = id;
-  if (isBase64Url(id)) {
-    const decodedUrl = decodeId(id);
-    const parts = decodedUrl.split('/');
+  try {
+    const decoded = decodeId(id);
+    if (decoded && (decoded.includes('/') || decoded.includes('-') || decoded.includes('episode') || decoded.includes('ep'))) {
+      cleanId = decoded;
+    }
+  } catch (_) {}
+
+  if (cleanId.startsWith('http://') || cleanId.startsWith('https://')) {
+    const parts = cleanId.split('/');
     cleanId = parts.pop() || parts.pop() || '';
   }
 
@@ -712,17 +718,8 @@ const getAnimeInfo = async (req, res) => {
       );
       item = data?.data?.Media;
     } else {
-      let searchTitle = resolvedId.replace(/-/g, ' ');
-      if (isBase64Url(resolvedId)) {
-        const decodedUrl = decodeId(resolvedId);
-        const parts = decodedUrl.split('/');
-        const slug = parts.pop() || parts.pop() || '';
-        const parsed = parseEpisodeInfo(slug);
-        searchTitle = parsed.animeName;
-      } else if (resolvedId.startsWith('search-') || resolvedId.startsWith('dm-')) {
-        const parsed = parseEpisodeInfo(resolvedId);
-        searchTitle = parsed.animeName;
-      }
+      const parsed = parseEpisodeInfo(resolvedId);
+      let searchTitle = parsed.animeName;
 
       console.log(`[Info] Searching AniList for: "${searchTitle}"`);
       const data = await anilistQuery(
