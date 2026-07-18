@@ -212,7 +212,7 @@ const scrapeAnimeKhor = async (title) => {
       const searchUrl = `https://animekhor.xyz/?s=${encodeURIComponent(variant)}`;
       console.log(`[AnimeKhor] Searching: "${variant}"`);
 
-      const searchRes = await axios.get(searchUrl, { headers: SCRAPER_HEADERS, timeout: 8000 });
+      const searchRes = await axios.get(searchUrl, { headers: SCRAPER_HEADERS, timeout: 3000 });
       const $ = cheerio.load(searchRes.data);
 
       let seriesUrl = null;
@@ -226,14 +226,14 @@ const scrapeAnimeKhor = async (title) => {
       if (!seriesUrl) {
         const directUrl = `https://animekhor.xyz/${slug}/`;
         try {
-          const testRes = await axios.head(directUrl, { headers: SCRAPER_HEADERS, timeout: 4000 });
+          const testRes = await axios.head(directUrl, { headers: SCRAPER_HEADERS, timeout: 2000 });
           if (testRes.status === 200) seriesUrl = directUrl;
         } catch (_) {}
       }
 
       if (seriesUrl) {
         console.log(`[AnimeKhor] Found series: ${seriesUrl}`);
-        const pageRes = await axios.get(seriesUrl, { headers: SCRAPER_HEADERS, timeout: 8000 });
+        const pageRes = await axios.get(seriesUrl, { headers: SCRAPER_HEADERS, timeout: 3000 });
         const $p = cheerio.load(pageRes.data);
         const episodes = [];
 
@@ -273,7 +273,7 @@ const scrapeLuciferDonghua = async (title) => {
       for (const url of urls) {
         try {
           console.log(`[LuciferDonghua] Trying: ${url}`);
-          const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 8000 });
+          const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 3000 });
           const $ = cheerio.load(res.data);
           const episodes = [];
 
@@ -300,7 +300,7 @@ const scrapeLuciferDonghua = async (title) => {
       try {
         const searchRes = await axios.get(`https://luciferdonghua.in/?s=${encodeURIComponent(variant)}`, {
           headers: SCRAPER_HEADERS,
-          timeout: 8000,
+          timeout: 3000,
         });
         const $s = cheerio.load(searchRes.data);
         let found = null;
@@ -310,7 +310,7 @@ const scrapeLuciferDonghua = async (title) => {
         });
 
         if (found) {
-          const pageRes = await axios.get(found, { headers: SCRAPER_HEADERS, timeout: 8000 });
+          const pageRes = await axios.get(found, { headers: SCRAPER_HEADERS, timeout: 3000 });
           const $p = cheerio.load(pageRes.data);
           const episodes = [];
           $p('.eplister ul li a, .listing-chapters_wrap a, .episodelist a').each((i, el) => {
@@ -350,7 +350,7 @@ const scrapeMisterDonghua = async (title) => {
       for (const url of urls) {
         try {
           console.log(`[MisterDonghua] Trying: ${url}`);
-          const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 8000 });
+          const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 3000 });
           const $ = cheerio.load(res.data);
           const episodes = [];
 
@@ -693,21 +693,24 @@ const getAnimeInfo = async (req, res) => {
     const totalEps = mapped.episodes || 12;
     let episodes = [];
 
-    console.log(`[Info] Scraping episodes for "${mainTitle}"`);
-    episodes = await scrapeAnimeKhor(mainTitle);
-    if (episodes.length === 0 && romajiTitle && romajiTitle !== mainTitle) {
-      episodes = await scrapeAnimeKhor(romajiTitle);
+    console.log(`[Info] Scraping episodes in parallel for "${mainTitle}"`);
+    const scrapePromises = [
+      scrapeAnimeKhor(mainTitle).catch(() => []),
+      scrapeLuciferDonghua(mainTitle).catch(() => []),
+      scrapeMisterDonghua(mainTitle).catch(() => []),
+    ];
+
+    if (romajiTitle && romajiTitle !== mainTitle) {
+      scrapePromises.push(scrapeAnimeKhor(romajiTitle).catch(() => []));
+      scrapePromises.push(scrapeLuciferDonghua(romajiTitle).catch(() => []));
     }
 
-    if (episodes.length === 0) {
-      episodes = await scrapeLuciferDonghua(mainTitle);
-      if (episodes.length === 0 && romajiTitle && romajiTitle !== mainTitle) {
-        episodes = await scrapeLuciferDonghua(romajiTitle);
+    const results = await Promise.all(scrapePromises);
+    for (const res of results) {
+      if (res && res.length > 0) {
+        episodes = res;
+        break;
       }
-    }
-
-    if (episodes.length === 0) {
-      episodes = await scrapeMisterDonghua(mainTitle);
     }
 
     if (episodes.length === 0) {
