@@ -22,12 +22,12 @@ const WatchPage = () => {
   autoPlayRef.current = autoPlay;
 
   // Parse current provider and core episode ID
-  let currentProvider = 'hianime';
+  let currentProvider = 'dailymotion';
   let coreId = episodeId;
   if (episodeId.includes(':')) {
-    const parts = episodeId.split(':');
-    currentProvider = parts[0];
-    coreId = parts.slice(1).join(':');
+    const colonIdx = episodeId.indexOf(':');
+    currentProvider = episodeId.substring(0, colonIdx);
+    coreId = episodeId.substring(colonIdx + 1);
   }
 
   // Parse anime ID from episode ID
@@ -144,25 +144,31 @@ const WatchPage = () => {
 
           {/* Server Switcher */}
           <div className="server-selector-container">
-            <span className="server-label">🐲 Switch Server (If player is loading or broken):</span>
+            <span className="server-label">🐲 Switch Server — Full Episodes Only:</span>
             <div className="server-buttons">
+              <Link
+                to={`/watch/animekhor:${coreId}`}
+                className={`server-btn ${currentProvider === 'animekhor' ? 'active' : ''}`}
+              >
+                🐉 AnimeKhor (Full Episodes)
+              </Link>
+              <Link
+                to={`/watch/lucifer:${coreId}`}
+                className={`server-btn ${currentProvider === 'lucifer' ? 'active' : ''}`}
+              >
+                🔥 LuciferDonghua
+              </Link>
+              <Link
+                to={`/watch/misterdonghua:${coreId}`}
+                className={`server-btn ${currentProvider === 'misterdonghua' ? 'active' : ''}`}
+              >
+                🌟 MisterDonghua
+              </Link>
               <Link
                 to={`/watch/dailymotion:${coreId}`}
                 className={`server-btn ${currentProvider === 'dailymotion' ? 'active' : ''}`}
               >
-                📺 Server Alpha (Dailymotion Chinese)
-              </Link>
-              <Link
-                to={`/watch/donghua:${coreId}`}
-                className={`server-btn ${currentProvider === 'donghua' ? 'active' : ''}`}
-              >
-                🐉 Server Beta (Donghua.io Scraper)
-              </Link>
-              <Link
-                to={`/watch/youtube:${coreId}`}
-                className={`server-btn ${currentProvider === 'youtube' ? 'active' : ''}`}
-              >
-                ▶ Server Gamma (YouTube Official)
+                📺 Dailymotion (Official Upload)
               </Link>
             </div>
           </div>
