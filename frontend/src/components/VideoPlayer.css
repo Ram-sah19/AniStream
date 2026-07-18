@@ -77,7 +77,7 @@
   justify-content: center;
   gap: 1rem;
   position: relative;
-  background: linear-gradient(135deg, #0a0a14 0%, #12122a 100%);
+  background: linear-gradient(135deg, #090608 0%, #110a0a 100%);
   overflow: hidden;
 }
 
@@ -87,7 +87,7 @@
   background: linear-gradient(
     105deg,
     transparent 40%,
-    rgba(139, 92, 246, 0.06) 50%,
+    rgba(212, 41, 31, 0.06) 50%,
     transparent 60%
   );
   background-size: 200% 100%;
@@ -100,14 +100,38 @@
 }
 
 .skeleton-play-icon {
-  font-size: 2.8rem;
-  animation: pulse 1.8s ease-in-out infinite;
   z-index: 1;
+  display: inline-flex;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50%       { opacity: 0.9; transform: scale(1.08); }
+.spinner {
+  animation: rotate 2s linear infinite;
+  transform-origin: center center;
+}
+
+.spinner .path {
+  stroke: #e8a830;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
 }
 
 .skeleton-text {
@@ -127,10 +151,14 @@
   gap: 0.5rem;
   padding: 2rem;
   text-align: center;
-  background: linear-gradient(135deg, #0f0f1a, #1a0808);
+  background: linear-gradient(135deg, #090608, #1a0808);
 }
 
-.error-icon { font-size: 2.5rem; margin-bottom: 0.3rem; }
+.error-icon { 
+  color: #d4291f; 
+  margin-bottom: 0.3rem; 
+  display: inline-flex;
+}
 
 .player-error h3 {
   color: #f87171;
@@ -161,13 +189,14 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #0a0a14, #12122a);
+  background: linear-gradient(135deg, #090608, #110a0a);
 }
 
 .placeholder-icon {
-  font-size: 3rem;
-  opacity: 0.5;
+  color: var(--text-dim);
+  opacity: 0.6;
   margin-bottom: 0.3rem;
+  display: inline-flex;
 }
 
 .player-placeholder h3 {
@@ -219,14 +248,14 @@
 }
 
 .quality-btn:hover {
-  background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.3);
-  color: #c084fc;
+  background: rgba(232, 168, 48, 0.1);
+  border-color: rgba(232, 168, 48, 0.3);
+  color: #e8a830;
 }
 
 .quality-btn.active {
-  background: rgba(139, 92, 246, 0.18);
-  border-color: rgba(139, 92, 246, 0.5);
-  color: #c084fc;
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
+  background: rgba(212, 41, 31, 0.18);
+  border-color: rgba(232, 168, 48, 0.45);
+  color: #e8a830;
+  box-shadow: 0 0 8px rgba(212, 41, 31, 0.2);
 }

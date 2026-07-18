@@ -120,15 +120,25 @@ const VideoPlayer = ({ videoUrl, isLoading, error, episodeTitle, isM3U8, sources
         {isLoading ? (
           <div className="player-skeleton">
             <div className="skeleton-pulse"></div>
-            <div className="skeleton-play-icon">⏳</div>
-            <p className="skeleton-text">Fetching stream from VidStreaming...</p>
+            <div className="skeleton-play-icon">
+              <svg className="spinner" width="40" height="40" viewBox="0 0 50 50">
+                <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5"></circle>
+              </svg>
+            </div>
+            <p className="skeleton-text">Resolving streaming sources...</p>
           </div>
         ) : (error || playerError) ? (
           <div className="player-error">
-            <span className="error-icon">⚠️</span>
+            <span className="error-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </span>
             <h3>Stream Unavailable</h3>
             <p>{error || playerError}</p>
-            <p className="error-hint">Make sure @consumet/extensions is installed and updated.</p>
+            <p className="error-hint">Please switch servers below if this player fails to load.</p>
           </div>
         ) : videoUrl ? (
           isM3U8 ? (
@@ -157,7 +167,12 @@ const VideoPlayer = ({ videoUrl, isLoading, error, episodeTitle, isM3U8, sources
           )
         ) : (
           <div className="player-placeholder">
-            <span className="placeholder-icon">🎬</span>
+            <span className="placeholder-icon">
+              <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
+              </svg>
+            </span>
             <h3>Select an Episode</h3>
             <p>Choose an episode from the list below to start watching</p>
           </div>

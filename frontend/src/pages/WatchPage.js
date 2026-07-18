@@ -144,31 +144,31 @@ const WatchPage = () => {
 
           {/* Server Switcher */}
           <div className="server-selector-container">
-            <span className="server-label">🐲 Switch Server — Full Episodes Only:</span>
+            <span className="server-label">Switch Server — Full Episodes Only:</span>
             <div className="server-buttons">
               <Link
                 to={`/watch/animekhor:${coreId}`}
                 className={`server-btn ${currentProvider === 'animekhor' ? 'active' : ''}`}
               >
-                🐉 AnimeKhor (Full Episodes)
+                AnimeKhor (Full Episodes)
               </Link>
               <Link
                 to={`/watch/lucifer:${coreId}`}
                 className={`server-btn ${currentProvider === 'lucifer' ? 'active' : ''}`}
               >
-                🔥 LuciferDonghua
+                LuciferDonghua
               </Link>
               <Link
                 to={`/watch/misterdonghua:${coreId}`}
                 className={`server-btn ${currentProvider === 'misterdonghua' ? 'active' : ''}`}
               >
-                🌟 MisterDonghua
+                MisterDonghua
               </Link>
               <Link
                 to={`/watch/dailymotion:${coreId}`}
                 className={`server-btn ${currentProvider === 'dailymotion' ? 'active' : ''}`}
               >
-                📺 Dailymotion (Official Upload)
+                Dailymotion (Official Upload)
               </Link>
             </div>
           </div>

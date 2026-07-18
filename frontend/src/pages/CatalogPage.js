@@ -85,7 +85,11 @@ const CatalogPage = () => {
         {/* Header */}
         <div className="catalog-header">
           <h1 className="catalog-title">
-            <span>🐉</span> Browse Donghua Catalog
+            <span className="catalog-icon-svg">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </span> Browse Donghua Catalog
           </h1>
           <p className="catalog-subtitle">Explore the complete collection of Chinese animation series</p>
         </div>
@@ -95,7 +99,12 @@ const CatalogPage = () => {
           
           {/* Search bar inside catalog */}
           <div className="catalog-search-bar">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
             <input 
               type="text" 
               placeholder="Search by name..." 

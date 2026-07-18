@@ -37,7 +37,12 @@ const SearchPage = () => {
       <div className="search-container">
         <div className="search-header">
           <h1 className="search-title">
-            🔍 Search Results
+            <span className="title-icon-svg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span> Search Results
           </h1>
           {query && (
             <p className="search-query">
@@ -48,7 +53,12 @@ const SearchPage = () => {
 
         {!query && (
           <div className="search-empty">
-            <span>🖏</span>
+            <span className="empty-icon-svg">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
             <h2>Search for Donghua</h2>
             <p>Use the search bar above to find your favorite Chinese anime</p>
           </div>
@@ -70,16 +80,29 @@ const SearchPage = () => {
 
         {error && (
           <div className="search-empty">
-            <span>⚠️</span>
+            <span className="empty-icon-svg red">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </span>
             <p>{error}</p>
           </div>
         )}
 
         {!loading && !error && query && results.length === 0 && (
           <div className="search-empty">
-            <span>😕</span>
+            <span className="empty-icon-svg">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 15h8" />
+                <line x1="9" y1="9" x2="9.01" y2="9" />
+                <line x1="15" y1="9" x2="15.01" y2="9" />
+              </svg>
+            </span>
             <h2>No Results Found</h2>
-            <p>Try a different search term</p>
+            <p>Try a different search term or check spelling</p>
           </div>
         )}
 

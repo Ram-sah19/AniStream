@@ -270,8 +270,11 @@ const scrapeAnimeKhor = async (title) => {
         const episodes = [];
 
         $p('a[href], .episodios a, #episodes_list a, .epcurrent a').each((i, el) => {
-          const href = $p(el).attr('href');
+          let href = $p(el).attr('href');
           if (!isValidEpisodeUrl(href)) return;
+          if (href && !href.startsWith('http')) {
+            href = new URL(href, seriesUrl).href;
+          }
           const epMatch = href.match(/episode[-_]?(\d+)/i) || $p(el).text().match(/(\d+)/);
           const epNum = epMatch ? parseInt(epMatch[1], 10) : (i + 1);
           const id = encodeId('animekhor', href);
@@ -310,8 +313,11 @@ const scrapeLuciferDonghua = async (title) => {
           const episodes = [];
 
           $('.eplister ul li a, .listing-chapters_wrap a, .episodelist a, li.slide-up a').each((i, el) => {
-            const href = $(el).attr('href');
+            let href = $(el).attr('href');
             if (!isValidEpisodeUrl(href)) return;
+            if (href && !href.startsWith('http')) {
+              href = new URL(href, url).href;
+            }
             const numText = $(el).find('.epl-num').text().trim() || $(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
             const id = encodeId('lucifer', href);
@@ -346,8 +352,11 @@ const scrapeLuciferDonghua = async (title) => {
           const $p = cheerio.load(pageRes.data);
           const episodes = [];
           $p('.eplister ul li a, .listing-chapters_wrap a, .episodelist a').each((i, el) => {
-            const href = $p(el).attr('href');
+            let href = $p(el).attr('href');
             if (!isValidEpisodeUrl(href)) return;
+            if (href && !href.startsWith('http')) {
+              href = new URL(href, found).href;
+            }
             const numText = $p(el).find('.epl-num').text().trim() || $p(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
             const id = encodeId('lucifer', href);
@@ -387,8 +396,11 @@ const scrapeMisterDonghua = async (title) => {
           const episodes = [];
 
           $('.eplister ul li a, .listing-chapters_wrap a, .episodelist a, li a[href*="episode"]').each((i, el) => {
-            const href = $(el).attr('href');
+            let href = $(el).attr('href');
             if (!isValidEpisodeUrl(href)) return;
+            if (href && !href.startsWith('http')) {
+              href = new URL(href, url).href;
+            }
             const numText = $(el).find('.epl-num').text().trim() || $(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
             const id = encodeId('misterdonghua', href);
@@ -655,16 +667,23 @@ const resolveDailymotionStream = async (targetId) => {
 };
 
 const parseEpisodeInfo = (id) => {
-  let episodeNum = '1';
-  let animeName = id.replace(/-/g, ' ');
+  let cleanId = id;
+  if (isBase64Url(id)) {
+    const decodedUrl = decodeId(id);
+    const parts = decodedUrl.split('/');
+    cleanId = parts.pop() || parts.pop() || '';
+  }
 
-  const match = id.match(/(?:episode|ep)[-_]?(\d+)/i);
+  let episodeNum = '1';
+  let animeName = cleanId.replace(/-/g, ' ');
+
+  const match = cleanId.match(/(?:episode|ep)[-_]?(\d+)/i);
   if (match) {
     episodeNum = match[1];
-    const index = id.toLowerCase().indexOf(match[0]);
-    animeName = id.substring(0, index).replace(/-/g, ' ').trim();
+    const index = cleanId.toLowerCase().indexOf(match[0]);
+    animeName = cleanId.substring(0, index).replace(/-/g, ' ').trim();
   } else {
-    const parts = id.replace(/-(sub|dub|english|eng|raw|cn|chinese)/gi, '').split('-');
+    const parts = cleanId.replace(/-(sub|subbed|dub|english|eng|raw|cn|chinese)/gi, '').split('-');
     const last = parts[parts.length - 1];
     if (/^\d+$/.test(last)) {
       episodeNum = last;

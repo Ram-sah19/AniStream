@@ -56,7 +56,7 @@ const WatchlistPage = () => {
     <div className="watchlist-page" id="watchlist-page">
       <div className="watchlist-container">
         <h1 className="watchlist-title">
-          {activeTab === 'watchlist' ? '📋' : '⭐'} My Collection
+          My Collection
         </h1>
 
         {/* Tabs */}
@@ -66,14 +66,14 @@ const WatchlistPage = () => {
             onClick={() => setActiveTab('watchlist')}
             id="tab-watchlist"
           >
-            📋 Watchlist ({watchlist.length})
+            Watchlist ({watchlist.length})
           </button>
           <button
             className={`tab-btn ${activeTab === 'favorites' ? 'active' : ''}`}
             onClick={() => setActiveTab('favorites')}
             id="tab-favorites"
           >
-            ⭐ Favorites ({favorites.length})
+            Favorites ({favorites.length})
           </button>
         </div>
 
@@ -86,21 +86,31 @@ const WatchlistPage = () => {
 
         {error && (
           <div className="watchlist-empty">
-            <span>⚠️</span>
+            <span className="empty-icon-svg red">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </span>
             <p>{error}</p>
           </div>
         )}
 
         {!loading && !error && currentList.length === 0 && (
           <div className="watchlist-empty">
-            <span>{activeTab === 'watchlist' ? '📭' : '💫'}</span>
+            <span className="empty-icon-svg">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+            </span>
             <h2>
               {activeTab === 'watchlist'
                 ? 'Your watchlist is empty'
                 : 'No favorites yet'}
             </h2>
-            <p>Browse anime and add them to your {activeTab}!</p>
-            <Link to="/" className="browse-btn">Browse Anime</Link>
+            <p>Browse donghua and add them to your {activeTab}!</p>
+            <Link to="/" className="browse-btn">Browse Donghua</Link>
           </div>
         )}
 
@@ -114,11 +124,15 @@ const WatchlistPage = () => {
                     alt={item.title}
                     className="collection-image"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/180x256/1a1a2e/c084fc?text=No+Image';
+                      e.target.src = 'https://via.placeholder.com/180x256/110a0a/e8a830?text=No+Image';
                     }}
                   />
                   <div className="collection-overlay">
-                    <span className="collection-play">▶</span>
+                    <span className="collection-play">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </span>
                   </div>
                 </Link>
                 <div className="collection-info">
@@ -137,7 +151,7 @@ const WatchlistPage = () => {
                     className="remove-btn"
                     title="Remove from collection"
                   >
-                    🗑️ Remove
+                    Remove
                   </button>
                 </div>
               </div>

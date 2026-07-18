@@ -33,25 +33,30 @@ const Navbar = () => {
     <nav className={`navbar${scrolled ? ' scrolled' : ''}`} id="main-navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo" id="navbar-logo">
-          <span className="logo-icon">🐉</span>
+          <span className="logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 22H22L12 2Z" fill="currentColor" />
+              <path d="M12 6L4 20H20L12 6Z" fill="#e8a830" />
+            </svg>
+          </span>
           <span className="logo-text">DonghuaStream</span>
         </Link>
 
         <div className={`navbar-links${menuOpen ? ' active' : ''}`}>
           <Link to="/" className={`nav-link${isActive('/') ? ' active' : ''}`}>
-            <span className="nav-icon">🏠</span> Home
+            Home
           </Link>
           <Link to="/catalog" className={`nav-link${isActive('/catalog') ? ' active' : ''}`}>
-            <span className="nav-icon">🗺️</span> Browse
+            Browse
           </Link>
           <Link to="/popular" className={`nav-link${isActive('/popular') ? ' active' : ''}`}>
-            <span className="nav-icon">🔥</span> Popular
+            Popular
           </Link>
           <Link to="/watchlist" className={`nav-link${isActive('/watchlist') ? ' active' : ''}`}>
-            <span className="nav-icon">📋</span> Watchlist
+            Watchlist
           </Link>
           <Link to="/favorites" className={`nav-link${isActive('/favorites') ? ' active' : ''}`}>
-            <span className="nav-icon">⭐</span> Favorites
+            Favorites
           </Link>
         </div>
 
@@ -64,7 +69,12 @@ const Navbar = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             id="search-input"
           />
-          <button type="submit" className="search-btn" id="search-btn">🔍</button>
+          <button type="submit" className="search-btn" id="search-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
         </form>
 
         <button

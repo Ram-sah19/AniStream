@@ -10,7 +10,12 @@ const Footer = () => {
           {/* Brand */}
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
-              <span className="footer-logo-icon">🐉</span>
+              <span className="footer-logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 22H22L12 2Z" fill="currentColor" />
+                  <path d="M12 6L4 20H20L12 6Z" fill="#e8a830" />
+                </svg>
+              </span>
               <span className="footer-logo-text">DonghuaStream</span>
             </Link>
             <p className="footer-desc">

@@ -31,7 +31,12 @@ const PopularPage = () => {
       <section className="anime-section" style={{ paddingTop: '6rem' }}>
         <div className="section-header">
           <h2 className="section-title">
-            <span className="section-icon">🐉</span>
+            <span className="section-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2c0 0-3 3.5-3 5.5s1.5 3.5 3.5 3.5 3.5-1.5 3.5-3.5S12 2 12 2z" />
+                <path d="M12 10c0 0-4 4.5-4 7.5s2 4.5 5 4.5 5-2 5-4.5S12 10 12 10z" fill="currentColor" />
+              </svg>
+            </span>
             Most Popular Donghua
           </h2>
           <p className="section-subtitle">All-time most popular Chinese anime ranked by fans</p>
