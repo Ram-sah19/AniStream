@@ -950,8 +950,8 @@ const getWatchUrl = async (req, res) => {
             if (stream && stream.success) return { provider: 'animekhor', ...stream };
           }
         } catch (_) {}
-        throw new Error('animekhor failed');
-      })(), 10000).catch(() => { throw new Error('animekhor failed'); }),
+        return null;
+      })(), 10000).catch(() => null),
 
       // 2. LuciferDonghua
       withTimeout((async () => {
@@ -964,8 +964,8 @@ const getWatchUrl = async (req, res) => {
             if (stream && stream.success) return { provider: 'lucifer', ...stream };
           }
         } catch (_) {}
-        throw new Error('lucifer failed');
-      })(), 10000).catch(() => { throw new Error('lucifer failed'); }),
+        return null;
+      })(), 10000).catch(() => null),
 
       // 3. MisterDonghua
       withTimeout((async () => {
@@ -978,8 +978,8 @@ const getWatchUrl = async (req, res) => {
             if (stream && stream.success) return { provider: 'misterdonghua', ...stream };
           }
         } catch (_) {}
-        throw new Error('misterdonghua failed');
-      })(), 10000).catch(() => { throw new Error('misterdonghua failed'); }),
+        return null;
+      })(), 10000).catch(() => null),
 
       // 4. Dailymotion
       withTimeout((async () => {
@@ -987,26 +987,48 @@ const getWatchUrl = async (req, res) => {
           const stream = await resolveDailymotionStream(targetId);
           if (stream && stream.success) return { provider: 'dailymotion', ...stream };
         } catch (_) {}
-        throw new Error('dailymotion failed');
-      })(), 10000).catch(() => { throw new Error('dailymotion failed'); })
+        return null;
+      })(), 10000).catch(() => null)
     ];
 
-    // Return the FIRST successful stream immediately
-    let best = null;
-    try {
-      best = await Promise.any(resolveTasks);
-    } catch (_) {
-      // All failed — try collecting any partial results
-    }
+    const resolvedResults = await Promise.all(resolveTasks);
+    const validStreams = resolvedResults.filter(s => s !== null);
 
-    if (!best) {
+    if (validStreams.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No active video streams found for this episode. Please check back later!',
       });
     }
 
-    console.log(`[Auto-Selector] First resolved stream: "${best.provider}"`);
+    // Rank and score the streams based on quality and safety
+    const scoredStreams = validStreams.map(s => {
+      let score = 0;
+      const url = s.videoUrl || '';
+      
+      if (s.isM3U8) {
+        score += 100; // Native player, absolute best (ad-free)
+      } else if (url.includes('.mp4')) {
+        score += 80;  // Direct mp4 link
+      } else if (url.includes('dailymotion.com') || url.includes('youtube.com')) {
+        score += 60;  // Stable official embeds
+      } else {
+        score += 40;  // Third-party embeds
+      }
+
+      // Small score boost to prioritize user's manually requested provider if ranks are equal
+      if (s.provider === provider) {
+        score += 5;
+      }
+
+      return { ...s, score };
+    });
+
+    // Sort by score descending
+    scoredStreams.sort((a, b) => b.score - a.score);
+    const best = scoredStreams[0];
+
+    console.log(`[Auto-Selector] Selected "${best.provider}" (Score: ${best.score}) as default stream.`);
 
     return res.json({
       success: true,
@@ -1016,6 +1038,12 @@ const getWatchUrl = async (req, res) => {
       quality: best.quality,
       sources: best.sources,
       headers: best.headers || {},
+      allAvailableServers: scoredStreams.map(s => ({
+        provider: s.provider,
+        quality: s.quality,
+        videoUrl: s.videoUrl,
+        isM3U8: s.isM3U8
+      }))
     });
   } catch (error) {
     console.error('Watch error:', error.message);
