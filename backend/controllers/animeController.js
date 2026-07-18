@@ -211,38 +211,6 @@ const titleVariants = (title) => {
   return [...new Set(base)].map(v => v.replace(/[:,\-–]+$/, '').trim()).filter(Boolean);
 };
 
-const raceScrapers = (promises) => {
-  return new Promise((resolve) => {
-    let finishedCount = 0;
-    let resolved = false;
-
-    if (!promises || promises.length === 0) {
-      return resolve([]);
-    }
-
-    promises.forEach((p) => {
-      p.then((res) => {
-        if (resolved) return;
-        if (res && res.length > 0) {
-          resolved = true;
-          resolve(res);
-        } else {
-          finishedCount++;
-          if (finishedCount === promises.length) {
-            resolve([]);
-          }
-        }
-      }).catch(() => {
-        if (resolved) return;
-        finishedCount++;
-        if (finishedCount === promises.length) {
-          resolve([]);
-        }
-      });
-    });
-  });
-};
-
 // ═══════════════════════════════════════
 // SCRAPERS — AnimeKhor, Lucifer, MisterDonghua
 // ═══════════════════════════════════════
@@ -595,7 +563,7 @@ const resolveAnimeKhorStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      const extractPromises = sources.map(async (src) => {
+      const extractPromises = sources.slice(0, 2).map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
           try {
             const direct = await recursivelyExtractStream(src.url);
@@ -657,7 +625,7 @@ const resolveLuciferStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      const extractPromises = sources.map(async (src) => {
+      const extractPromises = sources.slice(0, 2).map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
           try {
             const direct = await recursivelyExtractStream(src.url);
@@ -705,7 +673,7 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      const extractPromises = sources.map(async (src) => {
+      const extractPromises = sources.slice(0, 2).map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
           try {
             const direct = await recursivelyExtractStream(src.url);
@@ -872,9 +840,16 @@ const getAnimeInfo = async (req, res) => {
       scrapePromises.push(scrapeLuciferDonghua(romajiTitle).catch(() => []));
     }
 
-    const results = await raceScrapers(scrapePromises);
-    if (results && results.length > 0) {
-      episodes = results;
+    // Fetch all scrapers in parallel with a strict 4-second timeout guard
+    const results = await Promise.all(
+      scrapePromises.map(p => withTimeout(p, 4000).catch(() => []))
+    );
+
+    // Merge all scraped episodes
+    for (const list of results) {
+      if (Array.isArray(list)) {
+        episodes.push(...list);
+      }
     }
 
     if (episodes.length === 0) {
@@ -956,49 +931,64 @@ const getWatchUrl = async (req, res) => {
     const { animeName, episodeNum } = parseEpisodeInfo(targetId);
     console.log(`[Auto-Selector] Auto-evaluating all servers for: "${animeName}" Ep ${episodeNum}`);
 
-    // Resolve all 4 servers concurrently
+    let decodedWatchUrl = null;
+    if (isBase64Url(targetId)) {
+      decodedWatchUrl = decodeId(targetId);
+      console.log(`[Watch] Decoded direct URL: "${decodedWatchUrl}"`);
+    }
+
+    // Resolve all 4 servers concurrently with a strict 10-second timeout per task
     const resolveTasks = [
       // 1. AnimeKhor
-      (async () => {
+      withTimeout((async () => {
         try {
-          const url = await searchAndGetEpisodeUrl('animekhor', animeName, episodeNum);
+          const url = (provider === 'animekhor' && decodedWatchUrl)
+            ? decodedWatchUrl
+            : await searchAndGetEpisodeUrl('animekhor', animeName, episodeNum);
           if (url) {
             const stream = await resolveAnimeKhorStream(url);
             if (stream && stream.success) return { provider: 'animekhor', ...stream };
           }
         } catch (_) {}
         return null;
-      })(),
+      })(), 10000).catch(() => null),
+
       // 2. LuciferDonghua
-      (async () => {
+      withTimeout((async () => {
         try {
-          const url = await searchAndGetEpisodeUrl('lucifer', animeName, episodeNum);
+          const url = (provider === 'lucifer' && decodedWatchUrl)
+            ? decodedWatchUrl
+            : await searchAndGetEpisodeUrl('lucifer', animeName, episodeNum);
           if (url) {
             const stream = await resolveLuciferStream(url);
             if (stream && stream.success) return { provider: 'lucifer', ...stream };
           }
         } catch (_) {}
         return null;
-      })(),
+      })(), 10000).catch(() => null),
+
       // 3. MisterDonghua
-      (async () => {
+      withTimeout((async () => {
         try {
-          const url = await searchAndGetEpisodeUrl('misterdonghua', animeName, episodeNum);
+          const url = (provider === 'misterdonghua' && decodedWatchUrl)
+            ? decodedWatchUrl
+            : await searchAndGetEpisodeUrl('misterdonghua', animeName, episodeNum);
           if (url) {
             const stream = await resolveMisterDonghuaStream(url);
             if (stream && stream.success) return { provider: 'misterdonghua', ...stream };
           }
         } catch (_) {}
         return null;
-      })(),
+      })(), 10000).catch(() => null),
+
       // 4. Dailymotion
-      (async () => {
+      withTimeout((async () => {
         try {
           const stream = await resolveDailymotionStream(targetId);
           if (stream && stream.success) return { provider: 'dailymotion', ...stream };
         } catch (_) {}
         return null;
-      })()
+      })(), 10000).catch(() => null)
     ];
 
     const resolvedResults = await Promise.all(resolveTasks);

@@ -69,8 +69,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  // Connect to MongoDB (non-blocking — server works even if DB fails)
-  await connectDB();
+  const mongoUri = process.env.MONGO_URI;
+  if (mongoUri && mongoUri !== 'Mongodburl') {
+    // Only connect if a real database URI is provided
+    await connectDB();
+  } else {
+    console.log('📡 Server running in Database-Free Mode. Client localStorage will handle watchlist data.');
+  }
 
   app.listen(PORT, () => {
     console.log(`\n🐉 DonghuaStream Backend API running on http://localhost:${PORT}`);

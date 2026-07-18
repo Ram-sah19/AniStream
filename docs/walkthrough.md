@@ -53,9 +53,11 @@ We added a brand new **Catalog Page** that allows you to browse the complete lib
 Implemented a truly out-of-the-box system design solution to bypass third-party embeds completely:
 - **`recursivelyExtractStream`**: A recursive backend scraper that loads third-party player iframes, crawls their DOM/scripts, and extracts the direct video file streams (`.m3u8` HLS playlists or direct `.mp4` sources).
 - **Direct Native Playback**: If a direct stream is extracted, the backend serves the direct HLS url to the frontend, which switches the player to native `Video.js` mode (`isM3U8: true`).
-- **Parallel Deep Extract**: Optimized the DOM video crawler loops inside all three scraper controllers by running extraction requests in parallel (`Promise.all`). This cuts down individual resolution time by over 70%.
+- **Parallel Deep Extract**: Optimized the DOM video crawler loops inside all three scraper controllers by running extraction requests in parallel (`Promise.all`). 
+- **Socket Pool Throttling (Slice 0-2)**: To prevent concurrent extraction from overloading Node's HTTP/DNS connection pool, limited the deep-resolver crawler to only test the first 2 sources of each provider. This completely eliminates socket pool congestion and timeouts.
 - **Task Timeout Guards (`withTimeout`)**: Wrapped all concurrent scraper runs in a strict 4-second timeout promise wrapper. This guarantees that even if a provider is completely down, the watch page will return working servers in under 4 seconds, completely preventing frontend Axios timeouts.
-- **Database-Free Mode (Client Storage)**: Migrated all user endpoints (`watchlist` and `favorites` collections) to browser `localStorage`. This completely eliminates the MongoDB Atlas dependency and server configuration requirements, ensuring 100% offline uptime and instant local caching for free.
+- **Database-Free Mode (Client Storage)**: Migrated all user endpoints (`watchlist` and `favorites` collections) to browser `localStorage`. 
+- **DNS Thread Starvation Fix**: Configured the backend to completely skip MongoDB connection attempts if `MONGO_URI` is a placeholder. This prevents background SRV connection loops from starving Node's DNS thread pool, resolving the Axios timeout issues for outbound scraper requests.
 - **Results**: Bypasses advertising scripts (like Vidverto, Coinprediction, Criteo) entirely, completely eliminating console warnings, ad blocks, and redirects!
 
 ### 3. ⚡ Concurrent Racing Engine (Fixed Timeout)
