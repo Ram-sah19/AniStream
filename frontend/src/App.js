@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import PopularPage from './pages/PopularPage';
+import CatalogPage from './pages/CatalogPage';
 import AnimeDetailPage from './pages/AnimeDetailPage';
 import WatchPage from './pages/WatchPage';
 import SearchPage from './pages/SearchPage';
@@ -19,6 +20,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/popular" element={<PopularPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/anime/:animeId" element={<AnimeDetailPage />} />
             <Route path="/watch/:episodeId" element={<WatchPage />} />
             <Route path="/search" element={<SearchPage />} />

@@ -23,6 +23,7 @@ const Footer = () => {
           <div className="footer-links-group">
             <h4>Quick Links</h4>
             <Link to="/">Home</Link>
+            <Link to="/catalog">Browse</Link>
             <Link to="/popular">Popular</Link>
             <Link to="/watchlist">Watchlist</Link>
             <Link to="/favorites">Favorites</Link>

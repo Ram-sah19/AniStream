@@ -24,6 +24,11 @@ export const searchAnime = async (query) => {
   return data;
 };
 
+export const fetchCatalog = async (params = {}) => {
+  const { data } = await API.get('/anime/catalog', { params });
+  return data;
+};
+
 export const fetchAnimeInfo = async (animeId) => {
   const { data } = await API.get(`/anime/info/${encodeURIComponent(animeId)}`);
   return data;

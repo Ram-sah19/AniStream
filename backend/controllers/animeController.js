@@ -696,6 +696,31 @@ const getAnimeInfo = async (req, res) => {
       console.log(`[Info] Tier 5: Generated ${episodes.length} placeholder episodes.`);
     }
 
+    // ═══════════════════════════════════════
+    // POST-PROCESS: Deduplicate + Re-sequence
+    // ═══════════════════════════════════════
+    // 1. Deduplicate by episode number — keep the entry with a real video ID
+    const epMap = new Map();
+    for (const ep of episodes) {
+      const existing = epMap.get(ep.number);
+      if (!existing) {
+        epMap.set(ep.number, ep);
+      } else {
+        // Prefer real video ID (dmVideoId) over placeholder
+        const existingIsReal = existing.dmVideoId || (!existing.id.includes('search-') && !existing.id.includes('placeholder'));
+        const newIsReal = ep.dmVideoId || (!ep.id.includes('search-') && !ep.id.includes('placeholder'));
+        if (newIsReal && !existingIsReal) epMap.set(ep.number, ep);
+      }
+    }
+
+    // 2. Sort by episode number
+    let cleanEpisodes = Array.from(epMap.values()).sort((a, b) => a.number - b.number);
+
+    // 3. Re-sequence: renumber 1,2,3... so there are no gaps in display
+    cleanEpisodes = cleanEpisodes.map((ep, idx) => ({ ...ep, number: idx + 1 }));
+
+    console.log(`[Info] Final episode count after dedup: ${cleanEpisodes.length}`);
+
     res.json({
       success: true,
       anime: {
@@ -708,14 +733,14 @@ const getAnimeInfo = async (req, res) => {
         description: mapped.synopsis,
         status: mapped.status,
         genres: mapped.genres,
-        totalEpisodes: mapped.episodes || episodes.length,
+        totalEpisodes: mapped.episodes || cleanEpisodes.length,
         score: mapped.score,
         year: mapped.year,
         season: mapped.season,
         type: mapped.type,
         studio: mapped.studio,
         countryOfOrigin: mapped.countryOfOrigin,
-        episodes,
+        episodes: cleanEpisodes,
       },
     });
   } catch (error) {
@@ -812,4 +837,51 @@ const getWatchUrl = async (req, res) => {
   }
 };
 
-module.exports = { getTrending, getPopular, searchAnime, getAnimeInfo, getWatchUrl };
+const getCatalog = async (req, res) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const genre = req.query.genre || null;
+    const sort = req.query.sort || 'POPULARITY_DESC';
+    const search = req.query.search || null;
+
+    let queryParams = '$page: Int, $perPage: Int, $sort: [MediaSort]';
+    const variables = { page, perPage: 24, sort: [sort] };
+
+    if (genre) {
+      queryParams += ', $genre: String';
+      variables.genre = genre;
+    }
+    if (search) {
+      queryParams += ', $search: String';
+      variables.search = search;
+    }
+
+    const query = `query (${queryParams}) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          perPage
+          currentPage
+          lastPage
+          hasNextPage
+        }
+        media(type: ANIME, countryOfOrigin: "CN"${genre ? ', genre: $genre' : ''}${search ? ', search: $search' : ''}, sort: $sort) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }`;
+
+    const data = await anilistQuery(query, variables);
+    res.json({
+      success: true,
+      pageInfo: data?.data?.Page?.pageInfo || {},
+      results: (data?.data?.Page?.media || []).map(mapAniListAnime),
+    });
+  } catch (e) {
+    console.error('Catalog error:', e.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch catalog' });
+  }
+};
+
+module.exports = { getTrending, getPopular, searchAnime, getAnimeInfo, getWatchUrl, getCatalog };
+

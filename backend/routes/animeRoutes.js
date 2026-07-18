@@ -7,12 +7,14 @@ const {
   searchAnime,
   getAnimeInfo,
   getWatchUrl,
+  getCatalog,
 } = require('../controllers/animeController');
 
 // Anime metadata routes
 router.get('/trending', getTrending);
 router.get('/popular', getPopular);
 router.get('/search', searchAnime);
+router.get('/catalog', getCatalog);
 router.get('/info/:animeId', getAnimeInfo);
 
 // Streaming route (returns M3U8 URL + sources)

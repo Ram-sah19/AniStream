@@ -41,6 +41,9 @@ const Navbar = () => {
           <Link to="/" className={`nav-link${isActive('/') ? ' active' : ''}`}>
             <span className="nav-icon">🏠</span> Home
           </Link>
+          <Link to="/catalog" className={`nav-link${isActive('/catalog') ? ' active' : ''}`}>
+            <span className="nav-icon">🗺️</span> Browse
+          </Link>
           <Link to="/popular" className={`nav-link${isActive('/popular') ? ' active' : ''}`}>
             <span className="nav-icon">🔥</span> Popular
           </Link>
