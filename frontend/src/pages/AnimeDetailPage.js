@@ -174,7 +174,7 @@ const AnimeDetailPage = () => {
             <div className="detail-actions">
               {anime.episodes?.length > 0 && (
                 <Link
-                  to={`/watch/${encodeURIComponent(anime.episodes[0].id)}`}
+                  to={`/watch/${anime.id || animeId}/${encodeURIComponent(anime.episodes[0].id)}`}
                   className="action-btn btn-watch"
                   id="watch-first-episode-btn"
                 >
@@ -212,6 +212,7 @@ const AnimeDetailPage = () => {
         <EpisodeList
           episodes={anime.episodes || []}
           animeTitle={anime.title}
+          animeId={anime.id || animeId}
         />
       </div>
     </div>

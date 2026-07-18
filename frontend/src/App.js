@@ -22,7 +22,7 @@ function App() {
             <Route path="/popular" element={<PopularPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/anime/:animeId" element={<AnimeDetailPage />} />
-            <Route path="/watch/:episodeId" element={<WatchPage />} />
+            <Route path="/watch/:animeId/:episodeId" element={<WatchPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
             <Route path="/favorites" element={<WatchlistPage />} />

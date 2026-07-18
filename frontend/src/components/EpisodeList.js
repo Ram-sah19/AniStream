@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import './EpisodeList.css';
 
-const EpisodeList = ({ episodes = [], currentEpisodeId, animeTitle }) => {
+const EpisodeList = ({ episodes = [], currentEpisodeId, animeTitle, animeId }) => {
   if (episodes.length === 0) {
     return (
       <div className="episode-list-empty">
@@ -41,7 +41,7 @@ const EpisodeList = ({ episodes = [], currentEpisodeId, animeTitle }) => {
           return (
             <Link
               key={ep.id}
-              to={`/watch/${encodeURIComponent(ep.id)}`}
+              to={`/watch/${animeId}/${encodeURIComponent(ep.id)}`}
               className={`episode-btn ${isActive ? 'active' : ''}`}
               id={`episode-btn-${ep.number}`}
               title={`${animeTitle} - Episode ${ep.number}`}

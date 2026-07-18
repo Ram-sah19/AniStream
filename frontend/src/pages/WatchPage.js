@@ -7,7 +7,7 @@ import { fetchWatchUrl, fetchAnimeInfo } from '../api';
 import './WatchPage.css';
 
 const WatchPage = () => {
-  const { episodeId } = useParams();
+  const { animeId, episodeId } = useParams();
   const navigate = useNavigate();
   const [videoUrl, setVideoUrl] = useState('');
   const [isM3U8, setIsM3U8] = useState(true);
@@ -30,20 +30,13 @@ const WatchPage = () => {
     coreId = episodeId.substring(colonIdx + 1);
   }
 
-  // Parse anime ID from episode ID
-  const getAnimeIdFromEpisode = (epId) => {
-    if (epId.includes('$episode$')) return epId.split('$episode$')[0];
-    const parts = epId.split('-episode-');
-    return parts.length > 1 ? parts[0] : epId;
-  };
-
   // Find next episode once animeInfo is loaded
   const currentEpIndex = animeInfo?.episodes?.findIndex((ep) => ep.id === episodeId) ?? -1;
   const nextEpisode = currentEpIndex >= 0 ? animeInfo?.episodes?.[currentEpIndex + 1] : null;
 
   const handleVideoEnded = () => {
     if (autoPlayRef.current && nextEpisode) {
-      navigate(`/watch/${encodeURIComponent(nextEpisode.id)}`);
+      navigate(`/watch/${animeId}/${encodeURIComponent(nextEpisode.id)}`);
     }
   };
 
@@ -80,7 +73,6 @@ const WatchPage = () => {
 
     const loadAnimeInfo = async () => {
       try {
-        const animeId = getAnimeIdFromEpisode(episodeId);
         const data = await fetchAnimeInfo(animeId);
         setAnimeInfo(data.anime);
       } catch (err) {
@@ -90,7 +82,7 @@ const WatchPage = () => {
 
     loadStream();
     loadAnimeInfo();
-  }, [episodeId]);
+  }, [animeId, episodeId]);
 
   return (
     <div className="watch-page" id="watch-page">
@@ -135,7 +127,7 @@ const WatchPage = () => {
             {nextEpisode && (
               <span className="next-ep-label">
                 Up next:{' '}
-                <Link to={`/watch/${encodeURIComponent(nextEpisode.id)}`}>
+                <Link to={`/watch/${animeId}/${encodeURIComponent(nextEpisode.id)}`}>
                   Episode {nextEpisode.number}
                 </Link>
               </span>
@@ -147,25 +139,25 @@ const WatchPage = () => {
             <span className="server-label">Switch Server — Full Episodes Only:</span>
             <div className="server-buttons">
               <Link
-                to={`/watch/animekhor:${coreId}`}
+                to={`/watch/${animeId}/animekhor:${coreId}`}
                 className={`server-btn ${currentProvider === 'animekhor' ? 'active' : ''}`}
               >
                 AnimeKhor (Full Episodes)
               </Link>
               <Link
-                to={`/watch/lucifer:${coreId}`}
+                to={`/watch/${animeId}/lucifer:${coreId}`}
                 className={`server-btn ${currentProvider === 'lucifer' ? 'active' : ''}`}
               >
                 LuciferDonghua
               </Link>
               <Link
-                to={`/watch/misterdonghua:${coreId}`}
+                to={`/watch/${animeId}/misterdonghua:${coreId}`}
                 className={`server-btn ${currentProvider === 'misterdonghua' ? 'active' : ''}`}
               >
                 MisterDonghua
               </Link>
               <Link
-                to={`/watch/dailymotion:${coreId}`}
+                to={`/watch/${animeId}/dailymotion:${coreId}`}
                 className={`server-btn ${currentProvider === 'dailymotion' ? 'active' : ''}`}
               >
                 Dailymotion (Official Upload)
@@ -194,6 +186,7 @@ const WatchPage = () => {
               episodes={animeInfo.episodes || []}
               currentEpisodeId={episodeId}
               animeTitle={animeInfo.title}
+              animeId={animeId}
             />
           )}
         </div>

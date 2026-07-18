@@ -457,7 +457,7 @@ const getDailymotionFullEpisodes = async (title, totalEps = 12) => {
 
           if (list.length > 0) {
             const best = list[0];
-            const dmSlug = `dm-${best.id}-ep${epNum}`;
+            const dmSlug = `dm-${best.id}-ep${epNum}-${toSlug(title)}`;
             const id = `dailymotion:${dmSlug}`;
             episodes.push({
               id,
@@ -510,6 +510,52 @@ const searchAndGetEpisodeUrl = async (provider, animeTitle, episodeNum) => {
   return null;
 };
 
+const recursivelyExtractStream = async (url, depth = 0) => {
+  if (depth > 2 || !url) return null;
+  try {
+    console.log(`[Deep Resolver] Fetching frame: ${url} (depth ${depth})`);
+    const res = await axios.get(url, { headers: SCRAPER_HEADERS, timeout: 4000 });
+    const html = res.data;
+
+    // Check for direct video tag sources
+    const $ = cheerio.load(html);
+    const videoSrc = $('video source[src], video[src]').attr('src');
+    if (videoSrc && (videoSrc.includes('.m3u8') || videoSrc.includes('.mp4'))) {
+      return { url: videoSrc, isM3U8: videoSrc.includes('.m3u8') };
+    }
+
+    // Match m3u8 in javascript configurations
+    const m3u8Match = html.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/g);
+    if (m3u8Match) {
+      const valid = m3u8Match.find(link => !isAdUrl(link));
+      if (valid) return { url: valid, isM3U8: true };
+    }
+
+    // Match mp4 in javascript configurations
+    const mp4Match = html.match(/https?:\/\/[^\s"']+\.mp4[^\s"']*/g);
+    if (mp4Match) {
+      const valid = mp4Match.find(link => !isAdUrl(link));
+      if (valid) return { url: valid, isM3U8: false };
+    }
+
+    // Crawl nested iframe
+    let nestedSrc = null;
+    $('iframe[src]').each((i, el) => {
+      const src = $(el).attr('src');
+      if (src && src.startsWith('http') && !isAdUrl(src) && !nestedSrc) {
+        nestedSrc = src;
+      }
+    });
+
+    if (nestedSrc) {
+      return await recursivelyExtractStream(nestedSrc, depth + 1);
+    }
+  } catch (e) {
+    console.warn(`[Deep Resolver] Failed at depth ${depth}:`, e.message);
+  }
+  return null;
+};
+
 // ═══════════════════════════════════════
 // STREAM RESOLVERS
 // ═══════════════════════════════════════
@@ -538,6 +584,20 @@ const resolveAnimeKhorStream = async (watchUrl) => {
     }
 
     if (sources.length > 0) {
+      const directSources = [];
+      for (const src of sources) {
+        if (!src.isM3U8 && src.url.startsWith('http')) {
+          const direct = await recursivelyExtractStream(src.url);
+          if (direct) {
+            directSources.push({
+              url: direct.url,
+              quality: `${src.quality} (Direct)`,
+              isM3U8: direct.isM3U8
+            });
+          }
+        }
+      }
+      sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -583,6 +643,20 @@ const resolveLuciferStream = async (watchUrl) => {
     });
 
     if (sources.length > 0) {
+      const directSources = [];
+      for (const src of sources) {
+        if (!src.isM3U8 && src.url.startsWith('http')) {
+          const direct = await recursivelyExtractStream(src.url);
+          if (direct) {
+            directSources.push({
+              url: direct.url,
+              quality: `${src.quality} (Direct)`,
+              isM3U8: direct.isM3U8
+            });
+          }
+        }
+      }
+      sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -614,6 +688,20 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
     }
 
     if (sources.length > 0) {
+      const directSources = [];
+      for (const src of sources) {
+        if (!src.isM3U8 && src.url.startsWith('http')) {
+          const direct = await recursivelyExtractStream(src.url);
+          if (direct) {
+            directSources.push({
+              url: direct.url,
+              quality: `${src.quality} (Direct)`,
+              isM3U8: direct.isM3U8
+            });
+          }
+        }
+      }
+      sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -624,7 +712,7 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
 
 const resolveDailymotionStream = async (targetId) => {
   try {
-    const directMatch = targetId.match(/^dm-([a-z0-9]+)-ep\d+$/i);
+    const directMatch = targetId.match(/^dm-([a-z0-9]+)-ep\d+/i);
     if (directMatch) {
       const embedUrl = `https://www.dailymotion.com/embed/video/${directMatch[1]}?autoplay=1`;
       return { success: true, videoUrl: embedUrl, isM3U8: false, quality: 'Dailymotion HD', sources: [{ url: embedUrl, quality: 'Dailymotion', isM3U8: false }], headers: {} };
@@ -678,6 +766,18 @@ const parseEpisodeInfo = (id) => {
   if (cleanId.startsWith('http://') || cleanId.startsWith('https://')) {
     const parts = cleanId.split('/');
     cleanId = parts.pop() || parts.pop() || '';
+  }
+
+  // Strip prefix search- or dm- to isolate the title slug
+  if (cleanId.startsWith('search-')) {
+    cleanId = cleanId.substring(7);
+  }
+  if (cleanId.startsWith('dm-')) {
+    const epMatch = cleanId.match(/-ep\d+-?/i);
+    if (epMatch) {
+      const idx = cleanId.indexOf(epMatch[0]);
+      cleanId = cleanId.substring(idx + epMatch[0].length);
+    }
   }
 
   let episodeNum = '1';
