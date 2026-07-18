@@ -6,16 +6,6 @@ const cheerio = require('cheerio');
 // ═══════════════════════════════════════
 const ANILIST_URL = 'https://graphql.anilist.co';
 
-// ── Known official YouTube channel IDs for Chinese anime studios ──
-// These channels upload full episodes publicly
-const OFFICIAL_YT_CHANNELS = {
-  tencent: 'UCdpiId0eJGnnIvfhpbJIM1w',     // Tencent Video Animation
-  yuewen: 'UCuLbvLOoJsOPMVkuVb6-bJg',       // Yuewen Animation English
-  bilibili: 'UCqkSPAHJXA-RJtRmBDggIOg',     // Made By Bilibili
-  iqiyi: 'UCqmn-9uFH8gxSMQFJiPGAoQ',        // iQIYI Anime
-  youku: 'UCBsV2O_B2nBBPSjkjECZmOA',        // YOUKU Animation
-};
-
 const SCRAPER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -30,6 +20,53 @@ const SCRAPER_HEADERS = {
 
 // Words that identify a video is NOT a full episode
 const TRAILER_KEYWORDS = ['trailer', 'teaser', 'preview', 'pv', 'opening', 'ending', 'ost', 'promo', 'mv ', 'music video', 'short clip', 'clip '];
+
+// ═══════════════════════════════════════
+// URL-Safe Base64 Helpers for routing safety
+// ═══════════════════════════════════════
+const encodeId = (provider, url) => {
+  const base64 = Buffer.from(url).toString('base64');
+  const urlSafe = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${provider}:${urlSafe}`;
+};
+
+const decodeId = (encoded) => {
+  try {
+    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    return Buffer.from(base64, 'base64').toString('utf8');
+  } catch (_) {
+    return '';
+  }
+};
+
+const isBase64Url = (str) => {
+  try {
+    const decoded = decodeId(str);
+    return decoded.startsWith('http://') || decoded.startsWith('https://');
+  } catch (_) {
+    return false;
+  }
+};
+
+const isValidEpisodeUrl = (href) => {
+  if (!href) return false;
+  const h = href.toLowerCase();
+  
+  // Exclude static/info pages
+  const excludes = [
+    '/a-z-lists', '/contact', '/dmca', '/privacy', '/terms', 
+    '/genre', '/category', '/tag', '/year', '/season', 
+    'wp-content', 'wp-includes', '/author/', '/page/', '?show='
+  ];
+  if (excludes.some(ex => h.includes(ex))) return false;
+
+  // Must have episode identifiers
+  const hasEpWord = h.includes('episode') || h.includes('-ep-') || h.includes('_ep_') || /\/ep[-_]?\d+/i.test(h) || h.match(/-ep\d+/i);
+  return !!hasEpWord;
+};
 
 // ═══════════════════════════════════════
 // AniList Helper
@@ -142,23 +179,17 @@ const toSlug = (title) =>
 
 const titleVariants = (title) => {
   const base = [title];
-  // Remove common suffixes
   const noSeason = title.replace(/\s*(season\s*\d+|s\d+|part\s*\d+|\d+(?:st|nd|rd|th)\s*season)/gi, '').trim();
   if (noSeason !== title) base.push(noSeason);
-  // Short version (first 3 words)
   const words = title.split(' ');
   if (words.length > 3) base.push(words.slice(0, 3).join(' '));
   return [...new Set(base)];
 };
 
 // ═══════════════════════════════════════
-// SCRAPER 1 — AnimeFLV / Zoro / AnimeKhor style sites
-// Target: sites that actually host full-episode donghua
+// SCRAPERS — AnimeKhor, Lucifer, MisterDonghua
 // ═══════════════════════════════════════
 
-/**
- * Scrape episode list from AnimeKhor (dedicated Chinese anime site)
- */
 const scrapeAnimeKhor = async (title) => {
   try {
     for (const variant of titleVariants(title)) {
@@ -178,7 +209,6 @@ const scrapeAnimeKhor = async (title) => {
       });
 
       if (!seriesUrl) {
-        // Try direct URL guess
         const directUrl = `https://animekhor.xyz/${slug}/`;
         try {
           const testRes = await axios.head(directUrl, { headers: SCRAPER_HEADERS, timeout: 4000 });
@@ -192,15 +222,14 @@ const scrapeAnimeKhor = async (title) => {
         const $p = cheerio.load(pageRes.data);
         const episodes = [];
 
-        // AnimeKhor uses episode list with links
-        $p('a[href*="episode"], a[href*="-ep-"], .episodios a, #episodes_list a, .epcurrent a, li a[href*="animekhor"]').each((i, el) => {
+        $p('a[href], .episodios a, #episodes_list a, .epcurrent a').each((i, el) => {
           const href = $p(el).attr('href');
-          if (!href) return;
+          if (!isValidEpisodeUrl(href)) return;
           const epMatch = href.match(/episode[-_]?(\d+)/i) || $p(el).text().match(/(\d+)/);
           const epNum = epMatch ? parseInt(epMatch[1], 10) : (i + 1);
-          const id = `animekhor:${href}`;
-          if (!episodes.some((e) => e.id === id)) {
-            episodes.push({ id, number: epNum, url: `/watch/animekhor:${encodeURIComponent(href)}` });
+          const id = encodeId('animekhor', href);
+          if (!episodes.some((e) => e.number === epNum)) {
+            episodes.push({ id, number: epNum, url: `/watch/${encodeURIComponent(id)}` });
           }
         });
 
@@ -217,9 +246,6 @@ const scrapeAnimeKhor = async (title) => {
   return [];
 };
 
-/**
- * Scrape episode list from LuciferDonghua
- */
 const scrapeLuciferDonghua = async (title) => {
   try {
     for (const variant of titleVariants(title)) {
@@ -236,15 +262,14 @@ const scrapeLuciferDonghua = async (title) => {
           const $ = cheerio.load(res.data);
           const episodes = [];
 
-          // LuciferDonghua episode list selectors
           $('.eplister ul li a, .listing-chapters_wrap a, .episodelist a, li.slide-up a').each((i, el) => {
             const href = $(el).attr('href');
-            if (!href) return;
+            if (!isValidEpisodeUrl(href)) return;
             const numText = $(el).find('.epl-num').text().trim() || $(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
-            const id = `lucifer:${href}`;
-            if (!episodes.some((e) => e.id === id)) {
-              episodes.push({ id, number: epNum, url: `/watch/lucifer:${encodeURIComponent(href)}` });
+            const id = encodeId('lucifer', href);
+            if (!episodes.some((e) => e.number === epNum)) {
+              episodes.push({ id, number: epNum, url: `/watch/${encodeURIComponent(id)}` });
             }
           });
 
@@ -275,12 +300,12 @@ const scrapeLuciferDonghua = async (title) => {
           const episodes = [];
           $p('.eplister ul li a, .listing-chapters_wrap a, .episodelist a').each((i, el) => {
             const href = $p(el).attr('href');
-            if (!href) return;
+            if (!isValidEpisodeUrl(href)) return;
             const numText = $p(el).find('.epl-num').text().trim() || $p(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
-            const id = `lucifer:${href}`;
-            if (!episodes.some((e) => e.id === id)) {
-              episodes.push({ id, number: epNum, url: `/watch/lucifer:${encodeURIComponent(href)}` });
+            const id = encodeId('lucifer', href);
+            if (!episodes.some((e) => e.number === epNum)) {
+              episodes.push({ id, number: epNum, url: `/watch/${encodeURIComponent(id)}` });
             }
           });
           if (episodes.length > 0) {
@@ -297,9 +322,6 @@ const scrapeLuciferDonghua = async (title) => {
   return [];
 };
 
-/**
- * Scrape episode list from MisterDonghua
- */
 const scrapeMisterDonghua = async (title) => {
   try {
     for (const variant of titleVariants(title)) {
@@ -319,12 +341,12 @@ const scrapeMisterDonghua = async (title) => {
 
           $('.eplister ul li a, .listing-chapters_wrap a, .episodelist a, li a[href*="episode"]').each((i, el) => {
             const href = $(el).attr('href');
-            if (!href) return;
+            if (!isValidEpisodeUrl(href)) return;
             const numText = $(el).find('.epl-num').text().trim() || $(el).text().trim();
             const epNum = parseInt(numText.match(/\d+/)?.[0] || (i + 1), 10);
-            const id = `misterdonghua:${href}`;
-            if (!episodes.some((e) => e.id === id)) {
-              episodes.push({ id, number: epNum, url: `/watch/misterdonghua:${encodeURIComponent(href)}` });
+            const id = encodeId('misterdonghua', href);
+            if (!episodes.some((e) => e.number === epNum)) {
+              episodes.push({ id, number: epNum, url: `/watch/${encodeURIComponent(id)}` });
             }
           });
 
@@ -343,8 +365,7 @@ const scrapeMisterDonghua = async (title) => {
 };
 
 // ═══════════════════════════════════════
-// SCRAPER 2 — Dailymotion FULL EPISODES
-// Strict filtering: must contain episode number, not a trailer
+// Dailymotion Full Episode List Builder
 // ═══════════════════════════════════════
 const getDailymotionFullEpisodes = async (title, totalEps = 12) => {
   const episodes = [];
@@ -369,11 +390,8 @@ const getDailymotionFullEpisodes = async (title, totalEps = 12) => {
 
           const list = (data?.list || []).filter((v) => {
             const t = (v.title || '').toLowerCase();
-            // Must have episode number in title
             const hasEpNum = t.includes(`episode ${epNum}`) || t.includes(`ep ${epNum}`) || t.includes(`ep.${epNum}`) || t.includes(` ${epNum} `);
-            // Must NOT be a trailer
             const isTrailer = TRAILER_KEYWORDS.some((kw) => t.includes(kw));
-            // Must be long enough (full ep ≥ 10 min = 600s)
             const isLongEnough = !v.duration || v.duration >= 600;
             return hasEpNum && !isTrailer && isLongEnough;
           });
@@ -381,25 +399,25 @@ const getDailymotionFullEpisodes = async (title, totalEps = 12) => {
           if (list.length > 0) {
             const best = list[0];
             const dmSlug = `dm-${best.id}-ep${epNum}`;
+            const id = `dailymotion:${dmSlug}`;
             episodes.push({
-              id: `dailymotion:${dmSlug}`,
+              id,
               number: epNum,
               dmVideoId: best.id,
-              url: `/watch/dailymotion:${dmSlug}`,
+              url: `/watch/${encodeURIComponent(id)}`,
             });
             found = true;
-            console.log(`[Dailymotion] Ep ${epNum}: "${best.title}" (${best.id})`);
           }
         } catch (_) {}
       }
 
       if (!found) {
-        // Still add placeholder so episode shows in list
         const slug = toSlug(title);
+        const id = `dailymotion:search-${slug}-episode-${epNum}`;
         episodes.push({
-          id: `dailymotion:search-${slug}-episode-${epNum}`,
+          id,
           number: epNum,
-          url: `/watch/dailymotion:search-${slug}-episode-${epNum}`,
+          url: `/watch/${encodeURIComponent(id)}`,
         });
       }
     }
@@ -410,21 +428,40 @@ const getDailymotionFullEpisodes = async (title, totalEps = 12) => {
 };
 
 // ═══════════════════════════════════════
+// DYNAMIC EPISODE RESOLVER ON FALLBACK
+// ═══════════════════════════════════════
+const searchAndGetEpisodeUrl = async (provider, animeTitle, episodeNum) => {
+  try {
+    console.log(`[Dynamic Search] Finding Ep ${episodeNum} for "${animeTitle}" on ${provider}`);
+    let eps = [];
+    if (provider === 'animekhor') eps = await scrapeAnimeKhor(animeTitle);
+    if (provider === 'lucifer') eps = await scrapeLuciferDonghua(animeTitle);
+    if (provider === 'misterdonghua') eps = await scrapeMisterDonghua(animeTitle);
+
+    const match = eps.find((e) => e.number === Number(episodeNum));
+    if (match) {
+      const colonIdx = match.id.indexOf(':');
+      const url = decodeId(match.id.substring(colonIdx + 1));
+      console.log(`[Dynamic Search] Found URL: ${url}`);
+      return url;
+    }
+  } catch (e) {
+    console.warn('[Dynamic Search] Failed:', e.message);
+  }
+  return null;
+};
+
+// ═══════════════════════════════════════
 // STREAM RESOLVERS
 // ═══════════════════════════════════════
 
-/**
- * Resolve stream from AnimeKhor watch page
- */
 const resolveAnimeKhorStream = async (watchUrl) => {
   try {
-    const decodedUrl = decodeURIComponent(watchUrl);
-    console.log(`[AnimeKhor] Resolving stream: ${decodedUrl}`);
-    const res = await axios.get(decodedUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
+    console.log(`[AnimeKhor] Resolving stream: ${watchUrl}`);
+    const res = await axios.get(watchUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
     const $ = cheerio.load(res.data);
     const sources = [];
 
-    // iframes
     $('iframe[src], .player-embed iframe, #player iframe').each((i, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
       if (src && src.length > 10 && !TRAILER_KEYWORDS.some((kw) => src.toLowerCase().includes(kw))) {
@@ -432,7 +469,6 @@ const resolveAnimeKhorStream = async (watchUrl) => {
       }
     });
 
-    // Plyr / JW Player source data
     const html = res.data;
     const fileMatches = html.match(/file\s*:\s*["']([^"']+\.m3u8[^"']*)["']/gi) || [];
     for (const m of fileMatches) {
@@ -442,16 +478,7 @@ const resolveAnimeKhorStream = async (watchUrl) => {
       }
     }
 
-    // Data attributes
-    $('[data-src], [data-file], [data-video-src]').each((i, el) => {
-      const src = $(el).attr('data-src') || $(el).attr('data-file') || $(el).attr('data-video-src');
-      if (src && src.startsWith('http') && !sources.some((s) => s.url === src)) {
-        sources.push({ url: src, quality: 'Data Source', isM3U8: src.includes('.m3u8') });
-      }
-    });
-
     if (sources.length > 0) {
-      console.log(`[AnimeKhor] Resolved ${sources.length} sources.`);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -460,18 +487,13 @@ const resolveAnimeKhorStream = async (watchUrl) => {
   return null;
 };
 
-/**
- * Resolve stream from LuciferDonghua watch page
- */
 const resolveLuciferStream = async (watchUrl) => {
   try {
-    const decodedUrl = decodeURIComponent(watchUrl);
-    console.log(`[LuciferDonghua] Resolving stream: ${decodedUrl}`);
-    const res = await axios.get(decodedUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
+    console.log(`[LuciferDonghua] Resolving stream: ${watchUrl}`);
+    const res = await axios.get(watchUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
     const $ = cheerio.load(res.data);
     const sources = [];
 
-    // Look for video embeds
     $('iframe[src], .player iframe, #player iframe, .video-player iframe').each((i, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
       if (src && src.length > 10) {
@@ -479,7 +501,6 @@ const resolveLuciferStream = async (watchUrl) => {
       }
     });
 
-    // Extract HLS from page source
     const html = res.data;
     const m3u8Matches = html.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/g) || [];
     for (const url of m3u8Matches) {
@@ -488,7 +509,6 @@ const resolveLuciferStream = async (watchUrl) => {
       }
     }
 
-    // Server selection buttons often have data-embed
     $('.server-item, .mirror-opt, [data-embed], [data-value]').each((i, el) => {
       const val = $(el).attr('data-embed') || $(el).attr('data-value') || $(el).attr('data-src');
       if (val) {
@@ -504,7 +524,6 @@ const resolveLuciferStream = async (watchUrl) => {
     });
 
     if (sources.length > 0) {
-      console.log(`[LuciferDonghua] Resolved ${sources.length} sources.`);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -513,14 +532,10 @@ const resolveLuciferStream = async (watchUrl) => {
   return null;
 };
 
-/**
- * Resolve stream from MisterDonghua watch page
- */
 const resolveMisterDonghuaStream = async (watchUrl) => {
   try {
-    const decodedUrl = decodeURIComponent(watchUrl);
-    console.log(`[MisterDonghua] Resolving stream: ${decodedUrl}`);
-    const res = await axios.get(decodedUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
+    console.log(`[MisterDonghua] Resolving stream: ${watchUrl}`);
+    const res = await axios.get(watchUrl, { headers: SCRAPER_HEADERS, timeout: 10000 });
     const $ = cheerio.load(res.data);
     const sources = [];
 
@@ -538,7 +553,6 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
     }
 
     if (sources.length > 0) {
-      console.log(`[MisterDonghua] Resolved ${sources.length} sources.`);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
   } catch (e) {
@@ -547,19 +561,14 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
   return null;
 };
 
-/**
- * Dailymotion stream — direct video ID or strict full-episode search
- */
 const resolveDailymotionStream = async (targetId) => {
   try {
-    // Pattern: "dm-{videoId}-ep{N}" → direct embed
     const directMatch = targetId.match(/^dm-([a-z0-9]+)-ep\d+$/i);
     if (directMatch) {
       const embedUrl = `https://www.dailymotion.com/embed/video/${directMatch[1]}?autoplay=1`;
       return { success: true, videoUrl: embedUrl, isM3U8: false, quality: 'Dailymotion HD', sources: [{ url: embedUrl, quality: 'Dailymotion', isM3U8: false }], headers: {} };
     }
 
-    // Parse episode info from slug
     const { animeName, episodeNum } = parseEpisodeInfo(targetId);
     const queries = [
       `"${animeName}" "episode ${episodeNum}" english sub full`,
@@ -578,7 +587,6 @@ const resolveDailymotionStream = async (targetId) => {
           const t = (v.title || '').toLowerCase();
           const hasEpNum = t.includes(episodeNum) || t.includes(`ep ${episodeNum}`) || t.includes(`ep.${episodeNum}`) || t.includes(`episode ${episodeNum}`);
           const isTrailer = TRAILER_KEYWORDS.some((kw) => t.includes(kw));
-          // Duration at least 10 minutes for a full episode
           const isLongEnough = !v.duration || v.duration >= 600;
           return hasEpNum && !isTrailer && isLongEnough;
         });
@@ -586,7 +594,7 @@ const resolveDailymotionStream = async (targetId) => {
         if (list.length > 0) {
           const best = list[0];
           const embedUrl = `https://www.dailymotion.com/embed/video/${best.id}?autoplay=1`;
-          console.log(`[Dailymotion] ✅ Full episode found: "${best.title}" (${best.duration}s)`);
+          console.log(`[Dailymotion] ✅ Full episode found: "${best.title}"`);
           return { success: true, videoUrl: embedUrl, isM3U8: false, quality: 'Dailymotion', sources: [{ url: embedUrl, quality: 'Dailymotion Full Episode', isM3U8: false }], headers: {} };
         }
       } catch (_) {}
@@ -597,9 +605,6 @@ const resolveDailymotionStream = async (targetId) => {
   return null;
 };
 
-// ═══════════════════════════════════════
-// PARSE EPISODE INFO FROM SLUG
-// ═══════════════════════════════════════
 const parseEpisodeInfo = (id) => {
   let episodeNum = '1';
   let animeName = id.replace(/-/g, ' ');
@@ -639,14 +644,26 @@ const getAnimeInfo = async (req, res) => {
       );
       item = data?.data?.Media;
     } else {
-      const cleanTitle = resolvedId.replace(/-/g, ' ');
+      let searchTitle = resolvedId.replace(/-/g, ' ');
+      if (isBase64Url(resolvedId)) {
+        const decodedUrl = decodeId(resolvedId);
+        const parts = decodedUrl.split('/');
+        const slug = parts.pop() || parts.pop() || '';
+        const parsed = parseEpisodeInfo(slug);
+        searchTitle = parsed.animeName;
+      } else if (resolvedId.startsWith('search-') || resolvedId.startsWith('dm-')) {
+        const parsed = parseEpisodeInfo(resolvedId);
+        searchTitle = parsed.animeName;
+      }
+
+      console.log(`[Info] Searching AniList for: "${searchTitle}"`);
       const data = await anilistQuery(
         `query ($search: String) {
           Page(page: 1, perPage: 1) {
             media(type: ANIME, search: $search, countryOfOrigin: "CN") { ${MEDIA_FIELDS} }
           }
         }`,
-        { search: cleanTitle }
+        { search: searchTitle }
       );
       item = data?.data?.Page?.media?.[0];
     }
@@ -659,67 +676,50 @@ const getAnimeInfo = async (req, res) => {
     const totalEps = mapped.episodes || 12;
     let episodes = [];
 
-    // ── Tier 1: AnimeKhor ──────────────────────────────────────
-    console.log(`[Info] Tier 1: Scraping AnimeKhor for "${mainTitle}"`);
+    console.log(`[Info] Scraping episodes for "${mainTitle}"`);
     episodes = await scrapeAnimeKhor(mainTitle);
     if (episodes.length === 0 && romajiTitle && romajiTitle !== mainTitle) {
       episodes = await scrapeAnimeKhor(romajiTitle);
     }
 
-    // ── Tier 2: LuciferDonghua ─────────────────────────────────
     if (episodes.length === 0) {
-      console.log(`[Info] Tier 2: Scraping LuciferDonghua for "${mainTitle}"`);
       episodes = await scrapeLuciferDonghua(mainTitle);
       if (episodes.length === 0 && romajiTitle && romajiTitle !== mainTitle) {
         episodes = await scrapeLuciferDonghua(romajiTitle);
       }
     }
 
-    // ── Tier 3: MisterDonghua ──────────────────────────────────
     if (episodes.length === 0) {
-      console.log(`[Info] Tier 3: Scraping MisterDonghua for "${mainTitle}"`);
       episodes = await scrapeMisterDonghua(mainTitle);
     }
 
-    // ── Tier 4: Dailymotion FULL EPISODE list ─────────────────
     if (episodes.length === 0) {
-      console.log(`[Info] Tier 4: Building Dailymotion episode list for "${mainTitle}" (${totalEps} eps)`);
       episodes = await getDailymotionFullEpisodes(mainTitle, totalEps);
     }
 
-    // ── Tier 5: Numeric fallback (Dailymotion search-per-watch) ─
     if (episodes.length === 0) {
       const slug = toSlug(mainTitle);
       for (let i = 1; i <= totalEps; i++) {
-        episodes.push({ id: `dailymotion:search-${slug}-episode-${i}`, number: i, url: `/watch/dailymotion:search-${slug}-episode-${i}` });
+        const id = `dailymotion:search-${slug}-episode-${i}`;
+        episodes.push({ id, number: i, url: `/watch/${encodeURIComponent(id)}` });
       }
-      console.log(`[Info] Tier 5: Generated ${episodes.length} placeholder episodes.`);
     }
 
-    // ═══════════════════════════════════════
-    // POST-PROCESS: Deduplicate + Re-sequence
-    // ═══════════════════════════════════════
-    // 1. Deduplicate by episode number — keep the entry with a real video ID
+    // Deduplicate & Re-sequence
     const epMap = new Map();
     for (const ep of episodes) {
       const existing = epMap.get(ep.number);
       if (!existing) {
         epMap.set(ep.number, ep);
       } else {
-        // Prefer real video ID (dmVideoId) over placeholder
         const existingIsReal = existing.dmVideoId || (!existing.id.includes('search-') && !existing.id.includes('placeholder'));
         const newIsReal = ep.dmVideoId || (!ep.id.includes('search-') && !ep.id.includes('placeholder'));
         if (newIsReal && !existingIsReal) epMap.set(ep.number, ep);
       }
     }
 
-    // 2. Sort by episode number
     let cleanEpisodes = Array.from(epMap.values()).sort((a, b) => a.number - b.number);
-
-    // 3. Re-sequence: renumber 1,2,3... so there are no gaps in display
     cleanEpisodes = cleanEpisodes.map((ep, idx) => ({ ...ep, number: idx + 1 }));
-
-    console.log(`[Info] Final episode count after dedup: ${cleanEpisodes.length}`);
 
     res.json({
       success: true,
@@ -766,23 +766,37 @@ const getWatchUrl = async (req, res) => {
       targetId = episodeId.substring(colonIdx + 1);
     }
 
-    console.log(`[Watch] Provider: "${provider}", Target: "${targetId}"`);
+    console.log(`[Watch] Requested Provider: "${provider}", Target: "${targetId}"`);
+
+    // Resolve watchUrl (if it's a URL-safe Base64 encoded URL, decode it; if not, dynamic search)
+    let watchUrl = null;
+    if (isBase64Url(targetId)) {
+      watchUrl = decodeId(targetId);
+      console.log(`[Watch] Decoded direct URL: "${watchUrl}"`);
+    } else {
+      // Dynamic fallback search (e.g. from Dailymotion slug or user server switch)
+      const { animeName, episodeNum } = parseEpisodeInfo(targetId);
+      watchUrl = await searchAndGetEpisodeUrl(provider, animeName, episodeNum);
+      if (!watchUrl && provider !== 'dailymotion' && provider !== 'youtube') {
+        console.log(`[Watch] Dynamic URL not found for ${provider}. Trying fallback...`);
+      }
+    }
 
     // ── AnimeKhor ──────────────────────────────────────────────
-    if (provider === 'animekhor') {
-      const stream = await resolveAnimeKhorStream(targetId);
+    if (provider === 'animekhor' && watchUrl) {
+      const stream = await resolveAnimeKhorStream(watchUrl);
       if (stream) return res.json(stream);
     }
 
     // ── LuciferDonghua ─────────────────────────────────────────
-    if (provider === 'lucifer') {
-      const stream = await resolveLuciferStream(targetId);
+    if (provider === 'lucifer' && watchUrl) {
+      const stream = await resolveLuciferStream(watchUrl);
       if (stream) return res.json(stream);
     }
 
     // ── MisterDonghua ──────────────────────────────────────────
-    if (provider === 'misterdonghua') {
-      const stream = await resolveMisterDonghuaStream(targetId);
+    if (provider === 'misterdonghua' && watchUrl) {
+      const stream = await resolveMisterDonghuaStream(watchUrl);
       if (stream) return res.json(stream);
     }
 
@@ -799,29 +813,39 @@ const getWatchUrl = async (req, res) => {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // AUTO-HEALING CHAIN — try every source in order
+    // AUTO-HEALING CHAIN — try every source in order using parsed details
     // ═══════════════════════════════════════════════════════════
     console.log(`[Auto-Heal] Primary provider "${provider}" failed. Trying fallback chain...`);
+    const { animeName, episodeNum } = parseEpisodeInfo(targetId);
 
     // 1. AnimeKhor
     try {
-      const stream = await resolveAnimeKhorStream(targetId);
-      if (stream) { console.log('[Auto-Heal] ✅ AnimeKhor'); return res.json(stream); }
+      const fallbackUrl = await searchAndGetEpisodeUrl('animekhor', animeName, episodeNum);
+      if (fallbackUrl) {
+        const stream = await resolveAnimeKhorStream(fallbackUrl);
+        if (stream) { console.log('[Auto-Heal] ✅ AnimeKhor'); return res.json(stream); }
+      }
     } catch (_) {}
 
     // 2. LuciferDonghua
     try {
-      const stream = await resolveLuciferStream(targetId);
-      if (stream) { console.log('[Auto-Heal] ✅ LuciferDonghua'); return res.json(stream); }
+      const fallbackUrl = await searchAndGetEpisodeUrl('lucifer', animeName, episodeNum);
+      if (fallbackUrl) {
+        const stream = await resolveLuciferStream(fallbackUrl);
+        if (stream) { console.log('[Auto-Heal] ✅ LuciferDonghua'); return res.json(stream); }
+      }
     } catch (_) {}
 
     // 3. MisterDonghua
     try {
-      const stream = await resolveMisterDonghuaStream(targetId);
-      if (stream) { console.log('[Auto-Heal] ✅ MisterDonghua'); return res.json(stream); }
+      const fallbackUrl = await searchAndGetEpisodeUrl('misterdonghua', animeName, episodeNum);
+      if (fallbackUrl) {
+        const stream = await resolveMisterDonghuaStream(fallbackUrl);
+        if (stream) { console.log('[Auto-Heal] ✅ MisterDonghua'); return res.json(stream); }
+      }
     } catch (_) {}
 
-    // 4. Dailymotion (full episode strict search)
+    // 4. Dailymotion
     try {
       const stream = await resolveDailymotionStream(targetId);
       if (stream) { console.log('[Auto-Heal] ✅ Dailymotion'); return res.json(stream); }
@@ -884,4 +908,3 @@ const getCatalog = async (req, res) => {
 };
 
 module.exports = { getTrending, getPopular, searchAnime, getAnimeInfo, getWatchUrl, getCatalog };
-
