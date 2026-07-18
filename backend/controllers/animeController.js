@@ -198,7 +198,39 @@ const titleVariants = (title) => {
   if (noSeason !== title) base.push(noSeason);
   const words = title.split(' ');
   if (words.length > 3) base.push(words.slice(0, 3).join(' '));
-  return [...new Set(base)];
+  return [...new Set(base)].map(v => v.replace(/[:,\-–]+$/, '').trim()).filter(Boolean);
+};
+
+const raceScrapers = (promises) => {
+  return new Promise((resolve) => {
+    let finishedCount = 0;
+    let resolved = false;
+
+    if (!promises || promises.length === 0) {
+      return resolve([]);
+    }
+
+    promises.forEach((p) => {
+      p.then((res) => {
+        if (resolved) return;
+        if (res && res.length > 0) {
+          resolved = true;
+          resolve(res);
+        } else {
+          finishedCount++;
+          if (finishedCount === promises.length) {
+            resolve([]);
+          }
+        }
+      }).catch(() => {
+        if (resolved) return;
+        finishedCount++;
+        if (finishedCount === promises.length) {
+          resolve([]);
+        }
+      });
+    });
+  });
 };
 
 // ═══════════════════════════════════════
@@ -705,12 +737,9 @@ const getAnimeInfo = async (req, res) => {
       scrapePromises.push(scrapeLuciferDonghua(romajiTitle).catch(() => []));
     }
 
-    const results = await Promise.all(scrapePromises);
-    for (const res of results) {
-      if (res && res.length > 0) {
-        episodes = res;
-        break;
-      }
+    const results = await raceScrapers(scrapePromises);
+    if (results && results.length > 0) {
+      episodes = results;
     }
 
     if (episodes.length === 0) {
