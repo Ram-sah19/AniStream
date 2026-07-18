@@ -151,6 +151,8 @@ const VideoPlayer = ({ videoUrl, isLoading, error, episodeTitle, isM3U8, sources
               title={episodeTitle || 'Video Player'}
               id="video-element"
               style={{ width: '100%', height: '100%', border: 'none' }}
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
+              allow="autoplay; encrypted-media; picture-in-picture"
             />
           )
         ) : (

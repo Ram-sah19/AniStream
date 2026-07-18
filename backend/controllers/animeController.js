@@ -21,6 +21,21 @@ const SCRAPER_HEADERS = {
 // Words that identify a video is NOT a full episode
 const TRAILER_KEYWORDS = ['trailer', 'teaser', 'preview', 'pv', 'opening', 'ending', 'ost', 'promo', 'mv ', 'music video', 'short clip', 'clip '];
 
+const AD_KEYWORDS = [
+  'adsystem', 'adserver', 'adsense', 'doubleclick', 'googleads', 'popads', 
+  'onclickads', 'exoclick', 'adsterra', 'propellerads', 'adsco.re', 'plugrush', 
+  'adfly', 'bc.game', 'bcgame', 'casino', 'betting', 'slot', 'gamble', 'affiliate',
+  'banner', 'sponsor', 'analytics', 'histats', 'clickunder', 'popunder', 'traffic',
+  'a-ads', 'crypto', 'juicyads', 'ero-advertising', 'adbtc', 'coinpayu', 'adport', 
+  'exdynsrv', 'exosrv', 'ad-maven', 'onclickperformance', 'adsterra'
+];
+
+const isAdUrl = (url) => {
+  if (!url) return true;
+  const u = url.toLowerCase();
+  return AD_KEYWORDS.some(kw => u.includes(kw));
+};
+
 // ═══════════════════════════════════════
 // URL-Safe Base64 Helpers for routing safety
 // ═══════════════════════════════════════
@@ -464,7 +479,7 @@ const resolveAnimeKhorStream = async (watchUrl) => {
 
     $('iframe[src], .player-embed iframe, #player iframe').each((i, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
-      if (src && src.length > 10 && !TRAILER_KEYWORDS.some((kw) => src.toLowerCase().includes(kw))) {
+      if (src && src.length > 10 && !isAdUrl(src) && !TRAILER_KEYWORDS.some((kw) => src.toLowerCase().includes(kw))) {
         sources.push({ url: src, quality: `Server ${i + 1}`, isM3U8: src.includes('.m3u8') });
       }
     });
@@ -473,7 +488,7 @@ const resolveAnimeKhorStream = async (watchUrl) => {
     const fileMatches = html.match(/file\s*:\s*["']([^"']+\.m3u8[^"']*)["']/gi) || [];
     for (const m of fileMatches) {
       const url = m.match(/["']([^"']+)["']/)?.[1];
-      if (url && !sources.some((s) => s.url === url)) {
+      if (url && !isAdUrl(url) && !sources.some((s) => s.url === url)) {
         sources.push({ url, quality: 'HLS Stream', isM3U8: true });
       }
     }
@@ -496,7 +511,7 @@ const resolveLuciferStream = async (watchUrl) => {
 
     $('iframe[src], .player iframe, #player iframe, .video-player iframe').each((i, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
-      if (src && src.length > 10) {
+      if (src && src.length > 10 && !isAdUrl(src)) {
         sources.push({ url: src, quality: `Mirror ${i + 1}`, isM3U8: src.includes('.m3u8') });
       }
     });
@@ -504,7 +519,7 @@ const resolveLuciferStream = async (watchUrl) => {
     const html = res.data;
     const m3u8Matches = html.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/g) || [];
     for (const url of m3u8Matches) {
-      if (!sources.some((s) => s.url === url)) {
+      if (url && !isAdUrl(url) && !sources.some((s) => s.url === url)) {
         sources.push({ url, quality: 'HLS', isM3U8: true });
       }
     }
@@ -516,7 +531,7 @@ const resolveLuciferStream = async (watchUrl) => {
           const decoded = Buffer.from(val, 'base64').toString('utf8');
           const match = decoded.match(/src=["']([^"']+)["']/i) || decoded.match(/https?:\/\/[^\s"']+/);
           const url = match?.[1] || match?.[0];
-          if (url && !sources.some((s) => s.url === url)) {
+          if (url && !isAdUrl(url) && !sources.some((s) => s.url === url)) {
             sources.push({ url, quality: `Server ${i + 1}`, isM3U8: url.includes('.m3u8') });
           }
         } catch (_) {}
@@ -541,7 +556,7 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
 
     $('iframe[src], .player iframe, video source[src]').each((i, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
-      if (src && src.length > 10) {
+      if (src && src.length > 10 && !isAdUrl(src)) {
         sources.push({ url: src, quality: `Source ${i + 1}`, isM3U8: src.includes('.m3u8') });
       }
     });
@@ -549,7 +564,9 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
     const html = res.data;
     const m3u8Matches = html.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/g) || [];
     for (const url of m3u8Matches) {
-      if (!sources.some((s) => s.url === url)) sources.push({ url, quality: 'HLS', isM3U8: true });
+      if (url && !isAdUrl(url) && !sources.some((s) => s.url === url)) {
+        sources.push({ url, quality: 'HLS', isM3U8: true });
+      }
     }
 
     if (sources.length > 0) {
