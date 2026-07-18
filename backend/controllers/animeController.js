@@ -1,6 +1,16 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const withTimeout = (promise, ms) => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Timeout'));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 // ═══════════════════════════════════════
 // AniList GraphQL API — Chinese Donghua
 // ═══════════════════════════════════════
@@ -585,18 +595,21 @@ const resolveAnimeKhorStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      for (const src of sources) {
+      const extractPromises = sources.map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
-          const direct = await recursivelyExtractStream(src.url);
-          if (direct) {
-            directSources.push({
-              url: direct.url,
-              quality: `${src.quality} (Direct)`,
-              isM3U8: direct.isM3U8
-            });
-          }
+          try {
+            const direct = await recursivelyExtractStream(src.url);
+            if (direct) {
+              directSources.push({
+                url: direct.url,
+                quality: `${src.quality} (Direct)`,
+                isM3U8: direct.isM3U8
+              });
+            }
+          } catch (_) {}
         }
-      }
+      });
+      await Promise.all(extractPromises);
       sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
@@ -644,18 +657,21 @@ const resolveLuciferStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      for (const src of sources) {
+      const extractPromises = sources.map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
-          const direct = await recursivelyExtractStream(src.url);
-          if (direct) {
-            directSources.push({
-              url: direct.url,
-              quality: `${src.quality} (Direct)`,
-              isM3U8: direct.isM3U8
-            });
-          }
+          try {
+            const direct = await recursivelyExtractStream(src.url);
+            if (direct) {
+              directSources.push({
+                url: direct.url,
+                quality: `${src.quality} (Direct)`,
+                isM3U8: direct.isM3U8
+              });
+            }
+          } catch (_) {}
         }
-      }
+      });
+      await Promise.all(extractPromises);
       sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
@@ -689,18 +705,21 @@ const resolveMisterDonghuaStream = async (watchUrl) => {
 
     if (sources.length > 0) {
       const directSources = [];
-      for (const src of sources) {
+      const extractPromises = sources.map(async (src) => {
         if (!src.isM3U8 && src.url.startsWith('http')) {
-          const direct = await recursivelyExtractStream(src.url);
-          if (direct) {
-            directSources.push({
-              url: direct.url,
-              quality: `${src.quality} (Direct)`,
-              isM3U8: direct.isM3U8
-            });
-          }
+          try {
+            const direct = await recursivelyExtractStream(src.url);
+            if (direct) {
+              directSources.push({
+                url: direct.url,
+                quality: `${src.quality} (Direct)`,
+                isM3U8: direct.isM3U8
+              });
+            }
+          } catch (_) {}
         }
-      }
+      });
+      await Promise.all(extractPromises);
       sources.unshift(...directSources);
       return { success: true, videoUrl: sources[0].url, isM3U8: sources[0].isM3U8, quality: sources[0].quality, sources, headers: {} };
     }
@@ -931,94 +950,110 @@ const getWatchUrl = async (req, res) => {
       targetId = episodeId.substring(colonIdx + 1);
     }
 
-    console.log(`[Watch] Requested Provider: "${provider}", Target: "${targetId}"`);
+    console.log(`[Watch] Requested: "${provider}", ID: "${targetId}"`);
 
-    // Resolve watchUrl (if it's a URL-safe Base64 encoded URL, decode it; if not, dynamic search)
-    let watchUrl = null;
-    if (isBase64Url(targetId)) {
-      watchUrl = decodeId(targetId);
-      console.log(`[Watch] Decoded direct URL: "${watchUrl}"`);
-    } else {
-      // Dynamic fallback search (e.g. from Dailymotion slug or user server switch)
-      const { animeName, episodeNum } = parseEpisodeInfo(targetId);
-      watchUrl = await searchAndGetEpisodeUrl(provider, animeName, episodeNum);
-      if (!watchUrl && provider !== 'dailymotion' && provider !== 'youtube') {
-        console.log(`[Watch] Dynamic URL not found for ${provider}. Trying fallback...`);
-      }
-    }
-
-    // ── AnimeKhor ──────────────────────────────────────────────
-    if (provider === 'animekhor' && watchUrl) {
-      const stream = await resolveAnimeKhorStream(watchUrl);
-      if (stream) return res.json(stream);
-    }
-
-    // ── LuciferDonghua ─────────────────────────────────────────
-    if (provider === 'lucifer' && watchUrl) {
-      const stream = await resolveLuciferStream(watchUrl);
-      if (stream) return res.json(stream);
-    }
-
-    // ── MisterDonghua ──────────────────────────────────────────
-    if (provider === 'misterdonghua' && watchUrl) {
-      const stream = await resolveMisterDonghuaStream(watchUrl);
-      if (stream) return res.json(stream);
-    }
-
-    // ── Dailymotion ────────────────────────────────────────────
-    if (provider === 'dailymotion') {
-      const stream = await resolveDailymotionStream(targetId);
-      if (stream) return res.json(stream);
-    }
-
-    // ── YouTube embed (direct video ID) ───────────────────────
-    if (provider === 'youtube') {
-      const embedUrl = `https://www.youtube.com/embed/${targetId}?autoplay=1`;
-      return res.json({ success: true, videoUrl: embedUrl, isM3U8: false, quality: 'YouTube Official', sources: [{ url: embedUrl, quality: 'YouTube', isM3U8: false }], headers: {} });
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // AUTO-HEALING CHAIN — try every source in order using parsed details
-    // ═══════════════════════════════════════════════════════════
-    console.log(`[Auto-Heal] Primary provider "${provider}" failed. Trying fallback chain...`);
+    // Parse target info for parallel lookup
     const { animeName, episodeNum } = parseEpisodeInfo(targetId);
+    console.log(`[Auto-Selector] Auto-evaluating all servers for: "${animeName}" Ep ${episodeNum}`);
 
-    // 1. AnimeKhor
-    try {
-      const fallbackUrl = await searchAndGetEpisodeUrl('animekhor', animeName, episodeNum);
-      if (fallbackUrl) {
-        const stream = await resolveAnimeKhorStream(fallbackUrl);
-        if (stream) { console.log('[Auto-Heal] ✅ AnimeKhor'); return res.json(stream); }
+    // Resolve all 4 servers concurrently
+    const resolveTasks = [
+      // 1. AnimeKhor
+      (async () => {
+        try {
+          const url = await searchAndGetEpisodeUrl('animekhor', animeName, episodeNum);
+          if (url) {
+            const stream = await resolveAnimeKhorStream(url);
+            if (stream && stream.success) return { provider: 'animekhor', ...stream };
+          }
+        } catch (_) {}
+        return null;
+      })(),
+      // 2. LuciferDonghua
+      (async () => {
+        try {
+          const url = await searchAndGetEpisodeUrl('lucifer', animeName, episodeNum);
+          if (url) {
+            const stream = await resolveLuciferStream(url);
+            if (stream && stream.success) return { provider: 'lucifer', ...stream };
+          }
+        } catch (_) {}
+        return null;
+      })(),
+      // 3. MisterDonghua
+      (async () => {
+        try {
+          const url = await searchAndGetEpisodeUrl('misterdonghua', animeName, episodeNum);
+          if (url) {
+            const stream = await resolveMisterDonghuaStream(url);
+            if (stream && stream.success) return { provider: 'misterdonghua', ...stream };
+          }
+        } catch (_) {}
+        return null;
+      })(),
+      // 4. Dailymotion
+      (async () => {
+        try {
+          const stream = await resolveDailymotionStream(targetId);
+          if (stream && stream.success) return { provider: 'dailymotion', ...stream };
+        } catch (_) {}
+        return null;
+      })()
+    ];
+
+    const resolvedResults = await Promise.all(resolveTasks);
+    const validStreams = resolvedResults.filter(s => s !== null);
+
+    if (validStreams.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active video streams found for this episode. Please check back later!',
+      });
+    }
+
+    // Rank and score the streams based on quality and safety
+    const scoredStreams = validStreams.map(s => {
+      let score = 0;
+      const url = s.videoUrl || '';
+      
+      if (s.isM3U8) {
+        score += 100; // Native player, absolute best (ad-free)
+      } else if (url.includes('.mp4')) {
+        score += 80;  // Direct mp4 link
+      } else if (url.includes('dailymotion.com') || url.includes('youtube.com')) {
+        score += 60;  // Stable official embeds
+      } else {
+        score += 40;  // Third-party embeds
       }
-    } catch (_) {}
 
-    // 2. LuciferDonghua
-    try {
-      const fallbackUrl = await searchAndGetEpisodeUrl('lucifer', animeName, episodeNum);
-      if (fallbackUrl) {
-        const stream = await resolveLuciferStream(fallbackUrl);
-        if (stream) { console.log('[Auto-Heal] ✅ LuciferDonghua'); return res.json(stream); }
+      // Small score boost to prioritize user's manually requested provider if ranks are equal
+      if (s.provider === provider) {
+        score += 5;
       }
-    } catch (_) {}
 
-    // 3. MisterDonghua
-    try {
-      const fallbackUrl = await searchAndGetEpisodeUrl('misterdonghua', animeName, episodeNum);
-      if (fallbackUrl) {
-        const stream = await resolveMisterDonghuaStream(fallbackUrl);
-        if (stream) { console.log('[Auto-Heal] ✅ MisterDonghua'); return res.json(stream); }
-      }
-    } catch (_) {}
+      return { ...s, score };
+    });
 
-    // 4. Dailymotion
-    try {
-      const stream = await resolveDailymotionStream(targetId);
-      if (stream) { console.log('[Auto-Heal] ✅ Dailymotion'); return res.json(stream); }
-    } catch (_) {}
+    // Sort by score descending
+    scoredStreams.sort((a, b) => b.score - a.score);
+    const best = scoredStreams[0];
 
-    return res.status(404).json({
-      success: false,
-      message: 'No full episode stream found. Try a different server or check back later!',
+    console.log(`[Auto-Selector] Selected "${best.provider}" (Score: ${best.score}) as default stream.`);
+
+    return res.json({
+      success: true,
+      provider: best.provider,
+      videoUrl: best.videoUrl,
+      isM3U8: best.isM3U8,
+      quality: best.quality,
+      sources: best.sources,
+      headers: best.headers || {},
+      allAvailableServers: scoredStreams.map(s => ({
+        provider: s.provider,
+        quality: s.quality,
+        videoUrl: s.videoUrl,
+        isM3U8: s.isM3U8
+      }))
     });
   } catch (error) {
     console.error('Watch error:', error.message);

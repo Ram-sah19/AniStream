@@ -40,37 +40,69 @@ export const fetchWatchUrl = async (episodeId) => {
 };
 
 // ═══════════════════════════════════════
-// USER ENDPOINTS
+// USER ENDPOINTS (Database-Free LocalStorage Implementation)
 // ═══════════════════════════════════════
 
 export const getWatchlist = async () => {
-  const { data } = await API.get('/user/watchlist');
-  return data;
+  try {
+    const list = JSON.parse(localStorage.getItem('watchlist')) || [];
+    return { success: true, watchlist: list };
+  } catch (_) {
+    return { success: true, watchlist: [] };
+  }
 };
 
 export const addToWatchlist = async (anime) => {
-  const { data } = await API.post('/user/watchlist', anime);
-  return data;
+  const list = JSON.parse(localStorage.getItem('watchlist')) || [];
+  const idStr = String(anime.animeId);
+  const exists = list.some((item) => String(item.animeId) === idStr);
+  if (exists) {
+    const err = new Error('Already in watchlist');
+    err.response = { status: 409 };
+    throw err;
+  }
+  list.push(anime);
+  localStorage.setItem('watchlist', JSON.stringify(list));
+  return { success: true, watchlist: list };
 };
 
 export const removeFromWatchlist = async (animeId) => {
-  const { data } = await API.delete(`/user/watchlist/${encodeURIComponent(animeId)}`);
-  return data;
+  const list = JSON.parse(localStorage.getItem('watchlist')) || [];
+  const idStr = String(animeId);
+  const filtered = list.filter((item) => String(item.animeId) !== idStr);
+  localStorage.setItem('watchlist', JSON.stringify(filtered));
+  return { success: true, watchlist: filtered };
 };
 
 export const getFavorites = async () => {
-  const { data } = await API.get('/user/favorites');
-  return data;
+  try {
+    const list = JSON.parse(localStorage.getItem('favorites')) || [];
+    return { success: true, favorites: list };
+  } catch (_) {
+    return { success: true, favorites: [] };
+  }
 };
 
 export const addToFavorites = async (anime) => {
-  const { data } = await API.post('/user/favorites', anime);
-  return data;
+  const list = JSON.parse(localStorage.getItem('favorites')) || [];
+  const idStr = String(anime.animeId);
+  const exists = list.some((item) => String(item.animeId) === idStr);
+  if (exists) {
+    const err = new Error('Already in favorites');
+    err.response = { status: 409 };
+    throw err;
+  }
+  list.push(anime);
+  localStorage.setItem('favorites', JSON.stringify(list));
+  return { success: true, favorites: list };
 };
 
 export const removeFromFavorites = async (animeId) => {
-  const { data } = await API.delete(`/user/favorites/${encodeURIComponent(animeId)}`);
-  return data;
+  const list = JSON.parse(localStorage.getItem('favorites')) || [];
+  const idStr = String(animeId);
+  const filtered = list.filter((item) => String(item.animeId) !== idStr);
+  localStorage.setItem('favorites', JSON.stringify(filtered));
+  return { success: true, favorites: filtered };
 };
 
 export default API;

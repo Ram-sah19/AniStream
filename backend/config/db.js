@@ -16,15 +16,14 @@ const connectDB = async () => {
     console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
     console.log(`   Database: ${conn.connection.name}`);
   } catch (error) {
-    console.error(`❌ MongoDB Atlas Connection Error: ${error.message}`);
+    console.warn(`⚠️  MongoDB Atlas not connected: ${error.message}`);
     // Fallback: try localhost if Atlas fails
     try {
       const fallback = await mongoose.connect('mongodb://localhost:27017/animesite');
       console.log(`✅ MongoDB Fallback Connected (localhost): ${fallback.connection.host}`);
       console.log(`   Database: ${fallback.connection.name}`);
     } catch (fallbackError) {
-      console.error(`❌ MongoDB Fallback also failed: ${fallbackError.message}`);
-      console.warn('⚠️  Server running without database. Watchlist/Favorites will not work.');
+      console.log('📡 Server running in Database-Free Mode. Client localStorage will be used.');
     }
   }
 
