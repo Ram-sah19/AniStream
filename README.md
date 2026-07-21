@@ -114,3 +114,5 @@ PORT=5000
 ## License
 
 MIT
+
+                                MADE FOR THE ANIME LOVER 
