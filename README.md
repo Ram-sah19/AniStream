@@ -115,4 +115,4 @@ PORT=5000
 
 MIT
                 
-                                                                            MADE FOR THE ANIME LOVER 💗
+                                                                     MADE FOR THE ANIME LOVER 💗
